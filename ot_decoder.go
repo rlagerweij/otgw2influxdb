@@ -1,9 +1,10 @@
 package main
 
 import "fmt"
-import "strings"
-import "encoding/hex"
-import "strconv"
+import "os"
+import "net"
+import "bufio"
+import "time"
 
 type openthermMessage struct {
 	message []byte
@@ -40,6 +41,26 @@ var decoderMap = map[uint8]oTValue {
 	0: oTValue{ "Status" , cTypeFlag8, cTypeFlag8, []string{ "CH enable", "DHW enable", "Cooling enable", "OTC active", "CH2 enable", "reserved", "reserved", "reserved", "Fault indication", "CH mode", "DHW mode", "Flame status", "Cooling status", "CH2 mode", "Diagnostic Event", "reserved", }},
 }
 
+func checkError(err error) {
+    if err != nil {
+        fmt.Fprintf(os.Stderr, "%v\n", err.Error())
+        os.Exit(1)
+    }
+}
+
+var addr = "10.0.0.130:6638"
+
 func main() {
-	fmt.Println("Test")
+
+	fmt.Println("Starting program")
+
+	d := net.Dialer{Timeout: 2 * time.Second}
+    conn, err := d.Dial("tcp", addr)
+    checkError(err)
+
+	for{
+		message, _ := bufio.NewReader(conn).ReadString('\n')
+		fmt.Print("Message from OTGW: "+message)
+	}
+
 }
