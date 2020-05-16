@@ -12,14 +12,14 @@ import (
 const cOTGWmsgLength = 11
 
 const (
-	cTypeNone  = 0
 	cTypeU8    = 1 // unsigned 8-bit integer 0 .. 255
 	cTypeU8WDT = 2 // byte representing Day of Week & Time of Day / HB : bits 7,6,5 : day of week / bits 4,3,2,1,0 : hours
 	cTypeS8    = 3 // signed 8-bit integer -128 .. 127 (two’s compliment)
 	cTypeF8_8  = 4 // signed fixed point value : 1 sign bit, 7 integer bit, 8 fractional bits (two’s compliment ie. the LSB of the 16bit binary number represents 1/256 flag8 byte composed of 8 single-bit flags
 	cTypeU16   = 5 // unsigned 16-bit integer 0..65535
 	cTypeS16   = 6 // signed 16-bit integer -32768..32767
-	cTypeFlag8 = 7 // byte composed of 8 single-bit flags
+	cTypeNone  = 7
+	cTypeFlag8 = 8 // byte composed of 8 single-bit flags
 )
 
 const (
@@ -45,11 +45,11 @@ type oTValue struct {
 }
 
 var decoderMapReadable = map[uint8]oTValue{
-	0: oTValue{"status", cTypeFlag8, cTypeFlag8, []string{"CH enable", "DHW enable", "Cooling enable", "OTC active", "CH2 enable", "reserved", "reserved", "reserved", "Fault indication", "CH mode", "DHW mode", "Flame status", "Cooling status", "CH2 mode", "Diagnostic Event", "reserved"}},
-	1: oTValue{"control_setpoint", cTypeF8_8, cTypeNone, []string{"Temperature setpoint for the supply from the boiler in degrees C"}},
-	2: oTValue{"master_configuration", cTypeNone, cTypeU8, []string{"MemberID code of the master"}},
-	3: oTValue{"slave_configuration", cTypeFlag8, cTypeU8, []string{"DHW present [ dhw not present, dhw is present ]", "Control type [ modulating, on/off ]", "Cooling config [ cooling not supported, cooling supported]", "DHW config [instantaneous or not-specified,	storage tank]", "Master low-off&pump control function [allowed,	not allowed]", "CH2 present [CH2 not present, CH2 present]", "reserved", "reserved", "reserved", "MemberID code of the slave"}},
-	5:   oTValue{"application-specific fault flags", cTypeFlag8, cTypeU8, []string{"Service request [service not req’d, service required]", "Lockout-reset [ remote reset disabled, rr enabled]", "Low water press [no WP fault, water pressure fault]", "Gas/flame fault [ no G/F fault, gas/flame fault ]", "Air press fault [ no AP fault, air pressure fault ]", "Water over-temp[ no OvT fault, over-temperat. Fault]", "reserved", "reserved", " OEM fault code u8 0..255 An OEM-specific fault/error code"}},
+	0:   oTValue{"status", cTypeFlag8, cTypeFlag8, []string{"CH enable", "DHW enable", "Cooling enable", "OTC active", "CH2 enable", "reserved", "reserved", "reserved", "Fault indication", "CH mode", "DHW mode", "Flame status", "Cooling status", "CH2 mode", "Diagnostic Event", "reserved"}},
+	1:   oTValue{"control_setpoint", cTypeF8_8, cTypeNone, []string{"Temperature setpoint for the supply from the boiler in degrees C"}},
+	2:   oTValue{"master_configuration", cTypeNone, cTypeU8, []string{"MemberID code of the master"}},
+	3:   oTValue{"slave_configuration", cTypeFlag8, cTypeU8, []string{"DHW present [ dhw not present, dhw is present ]", "Control type [ modulating, on/off ]", "Cooling config [ cooling not supported, cooling supported]", "DHW config [instantaneous or not-specified, storage tank]", "Master low-off&pump control function [allowed, not allowed]", "CH2 present [CH2 not present, CH2 present]", "reserved", "reserved", "reserved", "MemberID code of the slave"}},
+	5:   oTValue{"application-specific fault flags", cTypeFlag8, cTypeU8, []string{"Service request [service not req’d, service required]", "Lockout-reset [ remote reset disabled, rr enabled]", "Low water press [no WP fault, water pressure fault]", "Gas/flame fault [ no G/F fault, gas/flame fault ]", "Air press fault [ no AP fault, air pressure fault ]", "Water over-temp[no OvT fault, over-temperat. Fault]", "reserved", "reserved", "OEM fault code u8 0..255 An OEM-specific fault/error code"}},
 	7:   oTValue{"cooling_control_signal", cTypeF8_8, cTypeNone, []string{"Signal for cooling plant"}},
 	8:   oTValue{"control_setpoint_2", cTypeF8_8, cTypeNone, []string{"Temperature setpoint for the supply from the boiler for circuit 2 in degrees C"}},
 	9:   oTValue{"remote_override_room_setpoint", cTypeF8_8, cTypeNone, []string{"Remote override room setpoint (0 = No override)"}},
@@ -104,27 +104,31 @@ func checkError(err error) {
 	}
 }
 
-func bytesToInt(in []byte) int64 {
-	var result int64
+func bytesToUInt(in []byte) uint16 {
+	var result uint16 = 0
 	for _, v := range in {
 		result <<= 8
-		result += int64(v)
+		result += uint16(v)
 	}
 	return result
 }
 
 func bytesToFloat(in []byte) float64 {
-	fmt.Println("decoding ", in)
+	// fmt.Println("decoding ", in)
 	return float64(in[0]) + float64(in[1])/256
 }
 
 func byteToBool(in byte, bitPosition byte) bool {
-	return (in & (1<<bitPosition) > 0)
+	// fmt.Printf("flags % 08b \n", in)
+	// fmt.Printf("mask  % 08b %d\n", (1 << bitPosition), bitPosition)
+	isFlagSet := (in&(1<<bitPosition) > 0)
+	return isFlagSet
 }
 
 func getMessageType(msg string) uint8 {
 	var msgType uint8
-	v, err := hex.DecodeString(msg[1:9])
+	v, err := hex.DecodeString(msg[1:3])
+	fmt.Println("decoding type from ", v[0])
 	checkError(err)
 	msgType = uint8((v[0] >> 4) & 7)
 	return msgType
@@ -132,40 +136,53 @@ func getMessageType(msg string) uint8 {
 
 func decodeReadable(msg string) []string {
 	var output []string
-
-	fmt.Println("length ", len(msg))
+	var lowByteOffset = 1 // offset on lowbyte decoding is 1 for most types, exception being cTypeFlag8 and cTypeU8WDT
 
 	if len(msg) == cOTGWmsgLength {
-		fmt.Println(msg[1:9])
 		v, err := hex.DecodeString(msg[1:9])
 		checkError(err)
 		msgID := v[1]
-		fmt.Println(msgID)
 		decoder := decoderMapReadable[msgID]
 
 		switch decoder.highByteType {
 		case cTypeFlag8:
-			fmt.Printf("decode flags % 08b \n", v[2])
+			fmt.Println("High byte")
+			lowByteOffset = cTypeFlag8 // constant value was set to required offset
 			for i := 0; i < 7; i++ {
 				fmt.Println(decoder.descriptions[i], byteToBool(v[2], byte(i)))
 			}
 		case cTypeF8_8:
-			fmt.Println("decode float from ", v)
 			fmt.Println(decoder.descriptions[0], bytesToFloat(v[2:4]))
-
+		case cTypeU16:
+			fmt.Println(decoder.descriptions[0], bytesToUInt(v[2:4]))
+		case cTypeS16:
+			fmt.Println(decoder.descriptions[0], int16(bytesToUInt(v[2:4])))
+		case cTypeU8:
+			fmt.Println(decoder.descriptions[0], bytesToUInt(v[2:3]))
+		case cTypeS8:
+			fmt.Println(decoder.descriptions[0], int8(bytesToUInt(v[2:3])))
+		case cTypeU8WDT:
+			lowByteOffset = cTypeU8WDT                    // constant value was set to required offset
+			fmt.Println(decoder.descriptions[0], v[2]>>5) // top 3 bits
+			fmt.Println(decoder.descriptions[1], v[2]&31) // bottom 5 bits
 		default:
 			fmt.Println("unknown type")
 		}
 
 		switch decoder.lowByteType {
 		case cTypeFlag8:
-			fmt.Printf("decode flags % 08b \n", v[3])
+			fmt.Println("Low byte")
+			//			fmt.Printf("decode flags % 08b \n", v[3])
 			for i := 0; i < 7; i++ {
 				fmt.Println(decoder.descriptions[i+lowByteOffset], byteToBool(v[3], byte(i)))
 			}
+		case cTypeU8:
+			fmt.Println(decoder.descriptions[lowByteOffset], bytesToUInt(v[3:4]))
+		case cTypeS8:
+			fmt.Println(decoder.descriptions[lowByteOffset], int8(bytesToUInt(v[3:4])))
 		case cTypeNone:
 		default:
-			fmt.Println("unknown type")
+			// fmt.Println("unknown type")
 		}
 	}
 	return output
@@ -190,8 +207,11 @@ func main() {
 	for {
 		message, _ := bufio.NewReader(conn).ReadString('\n')
 		fmt.Print("Message from OTGW: " + message)
-		decodeReadable(message)
-		fmt.Println()
+		if (len(message) == cOTGWmsgLength) && (getMessageType(message) == cReadAck || getMessageType(message) == cWriteAck) {
+			fmt.Println("length message: ", len(message))
+			decodeReadable(message)
+			fmt.Println()
+		}
 	}
 
 }
