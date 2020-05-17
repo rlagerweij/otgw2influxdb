@@ -128,7 +128,7 @@ func byteToBool(in byte, bitPosition byte) bool {
 func getMessageType(msg string) uint8 {
 	var msgType uint8
 	v, err := hex.DecodeString(msg[1:3])
-	fmt.Println("decoding type from ", v[0])
+	//	fmt.Println("decoding type from ", v[0])
 	checkError(err)
 	msgType = uint8((v[0] >> 4) & 7)
 	return msgType
@@ -149,24 +149,24 @@ func decodeReadable(msg string) []string {
 			fmt.Println("High byte")
 			lowByteOffset = cTypeFlag8 // constant value was set to required offset
 			for i := 0; i < 7; i++ {
-				fmt.Println(decoder.descriptions[i], byteToBool(v[2], byte(i)))
+				output = append(output, fmt.Sprintln(decoder.descriptions[i], byteToBool(v[2], byte(i))))
 			}
 		case cTypeF8_8:
-			fmt.Println(decoder.descriptions[0], bytesToFloat(v[2:4]))
+			output = append(output, fmt.Sprintln(decoder.descriptions[0], bytesToFloat(v[2:4])))
 		case cTypeU16:
-			fmt.Println(decoder.descriptions[0], bytesToUInt(v[2:4]))
+			output = append(output, fmt.Sprintln(decoder.descriptions[0], bytesToUInt(v[2:4])))
 		case cTypeS16:
-			fmt.Println(decoder.descriptions[0], int16(bytesToUInt(v[2:4])))
+			output = append(output, fmt.Sprintln(decoder.descriptions[0], int16(bytesToUInt(v[2:4]))))
 		case cTypeU8:
-			fmt.Println(decoder.descriptions[0], bytesToUInt(v[2:3]))
+			output = append(output, fmt.Sprintln(decoder.descriptions[0], bytesToUInt(v[2:3])))
 		case cTypeS8:
-			fmt.Println(decoder.descriptions[0], int8(bytesToUInt(v[2:3])))
+			output = append(output, fmt.Sprintln(decoder.descriptions[0], int8(bytesToUInt(v[2:3]))))
 		case cTypeU8WDT:
-			lowByteOffset = cTypeU8WDT                    // constant value was set to required offset
-			fmt.Println(decoder.descriptions[0], v[2]>>5) // top 3 bits
-			fmt.Println(decoder.descriptions[1], v[2]&31) // bottom 5 bits
+			lowByteOffset = cTypeU8WDT                                              // constant value was set to required offset
+			output = append(output, fmt.Sprintln(decoder.descriptions[0], v[2]>>5)) // top 3 bits
+			output = append(output, fmt.Sprintln(decoder.descriptions[1], v[2]&31)) // bottom 5 bits
 		default:
-			fmt.Println("unknown type")
+			output = append(output, fmt.Sprintln("unknown type"))
 		}
 
 		switch decoder.lowByteType {
@@ -174,15 +174,15 @@ func decodeReadable(msg string) []string {
 			fmt.Println("Low byte")
 			//			fmt.Printf("decode flags % 08b \n", v[3])
 			for i := 0; i < 7; i++ {
-				fmt.Println(decoder.descriptions[i+lowByteOffset], byteToBool(v[3], byte(i)))
+				output = append(output, fmt.Sprintln(decoder.descriptions[i+lowByteOffset], byteToBool(v[3], byte(i))))
 			}
 		case cTypeU8:
-			fmt.Println(decoder.descriptions[lowByteOffset], bytesToUInt(v[3:4]))
+			output = append(output, fmt.Sprintln(decoder.descriptions[lowByteOffset], bytesToUInt(v[3:4])))
 		case cTypeS8:
-			fmt.Println(decoder.descriptions[lowByteOffset], int8(bytesToUInt(v[3:4])))
+			output = append(output, fmt.Sprintln(decoder.descriptions[lowByteOffset], int8(bytesToUInt(v[3:4]))))
 		case cTypeNone:
 		default:
-			// fmt.Println("unknown type")
+			output = append(output, fmt.Sprintln("unknown type"))
 		}
 	}
 	return output
@@ -209,8 +209,10 @@ func main() {
 		fmt.Print("Message from OTGW: " + message)
 		if (len(message) == cOTGWmsgLength) && (getMessageType(message) == cReadAck || getMessageType(message) == cWriteAck) {
 			fmt.Println("length message: ", len(message))
-			decodeReadable(message)
-			fmt.Println()
+			readable := decodeReadable(message)
+			for _, line := range readable {
+				fmt.Print(line)
+			}
 		}
 	}
 
