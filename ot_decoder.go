@@ -2,12 +2,15 @@ package main
 
 import (
 	"bufio"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"net"
 	"os"
 	"time"
 )
+
+const influxMeasurement = "otgw"
 
 const cOTGWmsgLength = 11
 
@@ -33,6 +36,28 @@ const (
 	cUnknownDataID = 7
 )
 
+const (
+	cFieldMaskBit1     = 1 << 0
+	cFieldMaskBit2     = 1 << 1
+	cFieldMaskBit3     = 1 << 1
+	cFieldMaskBit4     = 1 << 1
+	cFieldMaskBit5     = 1 << 1
+	cFieldMaskBit6     = 1 << 1
+	cFieldMaskBit7     = 1 << 1
+	cFieldMaskBit8     = 1 << 1
+	cFieldMaskBit9     = 1 << 1
+	cFieldMaskBit10    = 1 << 1
+	cFieldMaskBit11    = 1 << 1
+	cFieldMaskBit12    = 1 << 1
+	cFieldMaskBit13    = 1 << 1
+	cFieldMaskBit14    = 1 << 1
+	cFieldMaskBit15    = 1 << 1
+	cFieldMaskBit16    = 1 << 1
+	cFieldMaskLowByte  = 255 << 0
+	cFieldMaskHighByte = 255 << 8
+	cFieldMaskAllBits  = cFieldMaskHighByte + cFieldMaskLowByte
+)
+
 type openthermMessage struct {
 	message []byte
 }
@@ -42,6 +67,19 @@ type oTValue struct {
 	highByteType uint8
 	lowByteType  uint8
 	descriptions []string
+}
+
+type oTInfluxField struct {
+	fieldName string
+	fieldMask uint16
+}
+
+type oTValueInflux struct {
+	fields []oTInfluxField
+}
+
+var decoderMapInflux = map[uint8]oTValueInflux{
+	0: oTValueInflux{[]oTInfluxField{{"CH_status", cFieldMaskBit2}, {"DHW_status", cFieldMaskBit3}, {"Flame_status", cFieldMaskBit4}, {"Cooling_status", cFieldMaskBit5}, {"CH2_status", cFieldMaskBit6}, {"Diagnostic_Event", cFieldMaskBit7}}},
 }
 
 var decoderMapReadable = map[uint8]oTValue{
@@ -188,6 +226,36 @@ func decodeReadable(msg string) []string {
 	return output
 }
 
+func decodeLineProtocol(msg string) string {
+	var output string
+
+	if len(msg) == cOTGWmsgLength {
+		v, err := hex.DecodeString(msg[1:9])
+		checkError(err)
+		msgID := v[1]
+		decoder := decoderMapInflux[msgID]
+
+		output = influxMeasurement
+
+		for _, field := range decoder.fields {
+			data := binary.BigEndian.Uint16(v[2:4])
+			data = data & field.fieldMask
+			switch field.fieldMask {
+			case cFieldMaskHighByte:
+				data = data >> 8
+			case cFieldMaskLowByte:
+			case cFieldMaskAllBits:
+			default:
+				if data > 1 {
+					data = 1
+				} // if the type is not one of the above, it is a bitfield
+			}
+			output += " " + field.fieldName + "=" + fmt.Sprint(data)
+		}
+	}
+	return output + " " + fmt.Sprint(time.Now().UnixNano())
+}
+
 var testMessage = []string{"T80000200",
 	"B40000200",
 	"T10011B00",
@@ -202,6 +270,7 @@ func main() {
 
 	d := net.Dialer{Timeout: 2 * time.Second}
 	conn, err := d.Dial("tcp", addr)
+
 	checkError(err)
 
 	for {
@@ -213,6 +282,7 @@ func main() {
 			for _, line := range readable {
 				fmt.Print(line)
 			}
+			fmt.Println(decodeLineProtocol(message))
 		}
 	}
 
