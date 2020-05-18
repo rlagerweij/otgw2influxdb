@@ -72,6 +72,7 @@ type oTValue struct {
 type oTInfluxField struct {
 	fieldName string
 	fieldMask uint16
+	fieldType uint8
 }
 
 type oTValueInflux struct {
@@ -79,7 +80,7 @@ type oTValueInflux struct {
 }
 
 var decoderMapInflux = map[uint8]oTValueInflux{
-	0: oTValueInflux{[]oTInfluxField{{"CH_status", cFieldMaskBit2}, {"DHW_status", cFieldMaskBit3}, {"Flame_status", cFieldMaskBit4}, {"Cooling_status", cFieldMaskBit5}, {"CH2_status", cFieldMaskBit6}, {"Diagnostic_Event", cFieldMaskBit7}}},
+	0: oTValueInflux{[]oTInfluxField{{"CH_status", cFieldMaskBit2, cTypeF8_8}, {"DHW_status", cFieldMaskBit3, cTypeF8_8}, {"Flame_status", cFieldMaskBit4, cTypeF8_8}, {"Cooling_status", cFieldMaskBit5, cTypeF8_8}, {"CH2_status", cFieldMaskBit6, cTypeF8_8}, {"Diagnostic_Event", cFieldMaskBit7, cTypeF8_8}}},
 }
 
 var decoderMapReadable = map[uint8]oTValue{
