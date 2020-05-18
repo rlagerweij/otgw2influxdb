@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"net"
 	"os"
 	"time"
@@ -136,9 +137,15 @@ var decoderMapReadable = map[uint8]oTValue{
 	127: oTValue{"slave_product_version number and type", cTypeU8, cTypeU8, []string{"The slave device product version number as defined by the manufacturer", "The slave device product type as defined by the manufacturer"}},
 }
 
-func checkError(err error) {
+func checkErrorLog(err error) {
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err.Error())
+		log.Printf("%v\n", err.Error())
+	}
+}
+
+func checkErrorFatal(err error) {
+	if err != nil {
+		log.Printf("%v\n", err.Error())
 		os.Exit(1)
 	}
 }
@@ -168,7 +175,10 @@ func getMessageType(msg string) uint8 {
 	var msgType uint8
 	v, err := hex.DecodeString(msg[1:3])
 	//	fmt.Println("decoding type from ", v[0])
-	checkError(err)
+	if err != nil {
+		log.Printf("%v\n", err.Error())
+		return cDataInvalid
+	}
 	msgType = uint8((v[0] >> 4) & 7)
 	return msgType
 }
@@ -179,13 +189,16 @@ func decodeReadable(msg string) []string {
 
 	if len(msg) == cOTGWmsgLength {
 		v, err := hex.DecodeString(msg[1:9])
-		checkError(err)
+		if err != nil {
+			log.Printf("%v\n", err.Error())
+			return output
+		}
 		msgID := v[1]
 		decoder := decoderMapReadable[msgID]
 
 		switch decoder.highByteType {
 		case cTypeFlag8:
-			fmt.Println("High byte")
+			log.Println("High byte")
 			lowByteOffset = cTypeFlag8 // constant value was set to required offset
 			for i := 0; i < 7; i++ {
 				output = append(output, fmt.Sprintln(decoder.descriptions[i], byteToBool(v[2], byte(i))))
@@ -210,8 +223,7 @@ func decodeReadable(msg string) []string {
 
 		switch decoder.lowByteType {
 		case cTypeFlag8:
-			fmt.Println("Low byte")
-			//			fmt.Printf("decode flags % 08b \n", v[3])
+			log.Printf("Low byte: decode flags % 08b \n", v[3])
 			for i := 0; i < 7; i++ {
 				output = append(output, fmt.Sprintln(decoder.descriptions[i+lowByteOffset], byteToBool(v[3], byte(i))))
 			}
@@ -232,7 +244,10 @@ func decodeLineProtocol(msg string) string {
 
 	if len(msg) == cOTGWmsgLength {
 		v, err := hex.DecodeString(msg[1:9])
-		checkError(err)
+		if err != nil {
+			log.Printf("%v\n", err.Error())
+			return output
+		}
 		msgID := v[1]
 		decoder := decoderMapInflux[msgID]
 
@@ -267,18 +282,18 @@ var addr = "10.0.0.130:6638"
 
 func main() {
 
-	fmt.Println("Starting program")
+	log.Println("Starting program")
 
 	d := net.Dialer{Timeout: 2 * time.Second}
 	conn, err := d.Dial("tcp", addr)
 
-	checkError(err)
+	checkErrorFatal(err)
 
 	for {
 		message, _ := bufio.NewReader(conn).ReadString('\n')
-		fmt.Print("Message from OTGW: " + message)
+		log.Print("Message from OTGW: " + message)
 		if (len(message) == cOTGWmsgLength) && (getMessageType(message) == cReadAck || getMessageType(message) == cWriteAck) {
-			fmt.Println("length message: ", len(message))
+			log.Println("length message: ", len(message))
 			readable := decodeReadable(message)
 			for _, line := range readable {
 				fmt.Print(line)
