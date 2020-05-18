@@ -194,46 +194,48 @@ func decodeReadable(msg string) []string {
 			return output
 		}
 		msgID := v[1]
-		decoder := decoderMapReadable[msgID]
+		decoder, ok := decoderMapReadable[msgID]
 
-		switch decoder.highByteType {
-		case cTypeFlag8:
-			log.Println("High byte")
-			lowByteOffset = cTypeFlag8 // constant value was set to required offset
-			for i := 0; i < 7; i++ {
-				output = append(output, fmt.Sprintln(decoder.descriptions[i], byteToBool(v[2], byte(i))))
+		if ok {
+			switch decoder.highByteType {
+			case cTypeFlag8:
+				log.Println("High byte")
+				lowByteOffset = cTypeFlag8 // constant value was set to required offset
+				for i := 0; i < 7; i++ {
+					output = append(output, fmt.Sprintln(decoder.descriptions[i], byteToBool(v[2], byte(i))))
+				}
+			case cTypeF8_8:
+				output = append(output, fmt.Sprintln(decoder.descriptions[0], bytesToFloat(v[2:4])))
+			case cTypeU16:
+				output = append(output, fmt.Sprintln(decoder.descriptions[0], bytesToUInt(v[2:4])))
+			case cTypeS16:
+				output = append(output, fmt.Sprintln(decoder.descriptions[0], int16(bytesToUInt(v[2:4]))))
+			case cTypeU8:
+				output = append(output, fmt.Sprintln(decoder.descriptions[0], bytesToUInt(v[2:3])))
+			case cTypeS8:
+				output = append(output, fmt.Sprintln(decoder.descriptions[0], int8(bytesToUInt(v[2:3]))))
+			case cTypeU8WDT:
+				lowByteOffset = cTypeU8WDT                                              // constant value was set to required offset
+				output = append(output, fmt.Sprintln(decoder.descriptions[0], v[2]>>5)) // top 3 bits
+				output = append(output, fmt.Sprintln(decoder.descriptions[1], v[2]&31)) // bottom 5 bits
+			default:
+				output = append(output, fmt.Sprintln("unknown type"))
 			}
-		case cTypeF8_8:
-			output = append(output, fmt.Sprintln(decoder.descriptions[0], bytesToFloat(v[2:4])))
-		case cTypeU16:
-			output = append(output, fmt.Sprintln(decoder.descriptions[0], bytesToUInt(v[2:4])))
-		case cTypeS16:
-			output = append(output, fmt.Sprintln(decoder.descriptions[0], int16(bytesToUInt(v[2:4]))))
-		case cTypeU8:
-			output = append(output, fmt.Sprintln(decoder.descriptions[0], bytesToUInt(v[2:3])))
-		case cTypeS8:
-			output = append(output, fmt.Sprintln(decoder.descriptions[0], int8(bytesToUInt(v[2:3]))))
-		case cTypeU8WDT:
-			lowByteOffset = cTypeU8WDT                                              // constant value was set to required offset
-			output = append(output, fmt.Sprintln(decoder.descriptions[0], v[2]>>5)) // top 3 bits
-			output = append(output, fmt.Sprintln(decoder.descriptions[1], v[2]&31)) // bottom 5 bits
-		default:
-			output = append(output, fmt.Sprintln("unknown type"))
-		}
 
-		switch decoder.lowByteType {
-		case cTypeFlag8:
-			log.Printf("Low byte: decode flags % 08b \n", v[3])
-			for i := 0; i < 7; i++ {
-				output = append(output, fmt.Sprintln(decoder.descriptions[i+lowByteOffset], byteToBool(v[3], byte(i))))
+			switch decoder.lowByteType {
+			case cTypeFlag8:
+				log.Printf("Low byte: decode flags % 08b \n", v[3])
+				for i := 0; i < 7; i++ {
+					output = append(output, fmt.Sprintln(decoder.descriptions[i+lowByteOffset], byteToBool(v[3], byte(i))))
+				}
+			case cTypeU8:
+				output = append(output, fmt.Sprintln(decoder.descriptions[lowByteOffset], bytesToUInt(v[3:4])))
+			case cTypeS8:
+				output = append(output, fmt.Sprintln(decoder.descriptions[lowByteOffset], int8(bytesToUInt(v[3:4]))))
+			case cTypeNone:
+			default:
+				output = append(output, fmt.Sprintln("unknown type"))
 			}
-		case cTypeU8:
-			output = append(output, fmt.Sprintln(decoder.descriptions[lowByteOffset], bytesToUInt(v[3:4])))
-		case cTypeS8:
-			output = append(output, fmt.Sprintln(decoder.descriptions[lowByteOffset], int8(bytesToUInt(v[3:4]))))
-		case cTypeNone:
-		default:
-			output = append(output, fmt.Sprintln("unknown type"))
 		}
 	}
 	return output
@@ -249,27 +251,53 @@ func decodeLineProtocol(msg string) string {
 			return output
 		}
 		msgID := v[1]
-		decoder := decoderMapInflux[msgID]
+		decoder, ok := decoderMapInflux[msgID]
+		if ok {
+			output = influxMeasurement
 
-		output = influxMeasurement
-
-		for _, field := range decoder.fields {
-			data := binary.BigEndian.Uint16(v[2:4])
-			data = data & field.fieldMask
-			switch field.fieldMask {
-			case cFieldMaskHighByte:
-				data = data >> 8
-			case cFieldMaskLowByte:
-			case cFieldMaskAllBits:
-			default:
-				if data > 1 {
-					data = 1
-				} // if the type is not one of the above, it is a bitfield
+			for _, field := range decoder.fields {
+				data := binary.BigEndian.Uint16(v[2:4])
+				data = data & field.fieldMask
+				switch field.fieldMask {
+				case cFieldMaskHighByte:
+					data = data >> 8
+				case cFieldMaskLowByte:
+				case cFieldMaskAllBits:
+				default:
+					if data > 1 {
+						data = 1
+					} // if the type is not one of the above, it is a bitfield
+				}
+				output += " " + field.fieldName + "=" + fmt.Sprint(data)
 			}
-			output += " " + field.fieldName + "=" + fmt.Sprint(data)
+			output += " " + fmt.Sprint(time.Now().UnixNano())
 		}
 	}
-	return output + " " + fmt.Sprint(time.Now().UnixNano())
+	return output
+}
+
+func isValidMsg(msg string) bool {
+	var valid = true
+
+	valid = valid && (len(msg) == cOTGWmsgLength)
+	valid = valid && (msg[0:1] == "T" || msg[0:1] == "B")
+
+	if !valid {
+		log.Println("Received invalid message:", msg)
+	}
+
+	return valid
+}
+
+func isDecodableMsgType(msg string) bool {
+	otType := getMessageType(msg)
+	if otType == cDataInvalid ||
+		otType == cUnknownDataID ||
+		otType == cInvalidData {
+		log.Println("OT message contains invalid or unkonw data type:", msg)
+	}
+	// only the acknowledgements are worth decoding
+	return (otType == cReadAck || otType == cWriteAck)
 }
 
 var testMessage = []string{"T80000200",
@@ -292,7 +320,7 @@ func main() {
 	for {
 		message, _ := bufio.NewReader(conn).ReadString('\n')
 		log.Print("Message from OTGW: " + message)
-		if (len(message) == cOTGWmsgLength) && (getMessageType(message) == cReadAck || getMessageType(message) == cWriteAck) {
+		if isValidMsg(message) && isDecodableMsgType(message) {
 			log.Println("length message: ", len(message))
 			readable := decodeReadable(message)
 			for _, line := range readable {
