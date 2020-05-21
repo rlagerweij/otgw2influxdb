@@ -159,6 +159,11 @@ func bytesToUInt(in []byte) uint16 {
 	return result
 }
 
+func decodeF8_8(in []byte) string {
+	// fmt.Println("decoding ", in)
+	return fmt.Sprintf("%.2f", bytesToFloat(in))
+}
+
 func bytesToFloat(in []byte) float64 {
 	// fmt.Println("decoding ", in)
 	return float64(in[0]) + float64(in[1])/256
@@ -169,6 +174,14 @@ func byteToBool(in byte, bitPosition byte) bool {
 	// fmt.Printf("mask  % 08b %d\n", (1 << bitPosition), bitPosition)
 	isFlagSet := (in&(1<<bitPosition) > 0)
 	return isFlagSet
+}
+
+func decodeFlag8(in byte, bitPosition byte) string {
+	var result = "0"
+	if byteToBool(in, bitPosition) {
+		result = "1"
+	}
+	return result
 }
 
 func getMessageType(msg string) uint8 {
@@ -202,10 +215,10 @@ func decodeReadable(msg string) []string {
 				log.Println("High byte")
 				lowByteOffset = cTypeFlag8 // constant value was set to required offset
 				for i := 0; i < 7; i++ {
-					output = append(output, fmt.Sprintln(decoder.descriptions[i], byteToBool(v[2], byte(i))))
+					output = append(output, fmt.Sprintln(decoder.descriptions[i], decodeFlag8(v[2], byte(i))))
 				}
 			case cTypeF8_8:
-				output = append(output, fmt.Sprintln(decoder.descriptions[0], bytesToFloat(v[2:4])))
+				output = append(output, fmt.Sprintln(decoder.descriptions[0], decodeF8_8(v[2:4])))
 			case cTypeU16:
 				output = append(output, fmt.Sprintln(decoder.descriptions[0], bytesToUInt(v[2:4])))
 			case cTypeS16:
@@ -243,34 +256,57 @@ func decodeReadable(msg string) []string {
 	return output
 }
 
+func decodeMessage(v []byte, types []uint8, text []string) []string {
+	var output []string
+	var offset = 0 // offset on lowbyte decoding is 1 for most types, exception being cTypeFlag8 and cTypeU8WDT
+
+	for index, valueType := range types {
+		switch valueType {
+		case cTypeFlag8:
+			for i := 0; i < 7; i++ {
+				output = append(output, fmt.Sprintf("%s=%s", text[i+offset], decodeFlag8(v[2], byte(i))))
+			}
+			offset += 8 // after decoding flags the next decoder should start with an offset of 8
+		case cTypeF8_8:
+			output = append(output, fmt.Sprintf("%s=%v", text[offset], decodeF8_8(v[2:4])))
+		case cTypeU16:
+			output = append(output, fmt.Sprintf("%s=%v", text[offset], bytesToUInt(v[2:4])))
+		case cTypeS16:
+			output = append(output, fmt.Sprintf("%s=%v", text[offset], int16(bytesToUInt(v[2:4]))))
+		case cTypeU8:
+			output = append(output, fmt.Sprintf("%s=%v", text[offset], bytesToUInt(v[2+index:3+index])))
+			offset += 1 // after decoding an 8 bit number the next decoder should start with an offset of 1
+		case cTypeS8:
+			output = append(output, fmt.Sprintf("%s=%v", text[offset], int8(bytesToUInt(v[2+index:3+index]))))
+			offset += 1 // after decoding an 8 bit number the next decoder should start with an offset of 1
+		case cTypeU8WDT:
+			output = append(output, fmt.Sprintf("%s=%v", text[offset], v[2]>>5))   // top 3 bits
+			output = append(output, fmt.Sprintf("%s=%v", text[offset+1], v[2]&31)) // bottom 5 bits
+			offset += 1                                                            // after decoding this type the next decoder should start with an offset of 1
+		case cTypeNone:
+		default:
+			log.Println("unknown type:", valueType)
+		}
+	}
+	return output
+}
+
 func decodeLineProtocol(msg string) string {
 	var output string
 
-	if len(msg) == cOTGWmsgLength {
+	if isValidMsg(msg) {
 		v, err := hex.DecodeString(msg[1:9])
 		if err != nil {
 			log.Printf("%v\n", err.Error())
 			return output
 		}
 		msgID := v[1]
-		decoder, ok := decoderMapInflux[msgID]
-		if ok {
-			output = influxMeasurement
-
-			for _, field := range decoder.fields {
-				data := binary.BigEndian.Uint16(v[2:4])
-				data = data & field.fieldMask
-				switch field.fieldMask {
-				case cFieldMaskHighByte:
-					data = data >> 8
-				case cFieldMaskLowByte:
-				case cFieldMaskAllBits:
-				default:
-					if data > 1 {
-						data = 1
-					} // if the type is not one of the above, it is a bitfield
-				}
-				output += " " + field.fieldName + "=" + fmt.Sprint(data)
+		decoder, exists := decoderMapReadable[msgID]
+		if exists {
+			fields := decodeMessage(v, []byte{decoder.highByteType, decoder.lowByteType}, decoder.fields)
+			output = influxMeasurementName
+			for _, field := range fields {
+				output += " " + field
 			}
 			output += " " + fmt.Sprint(time.Now().UnixNano())
 		}
@@ -323,11 +359,10 @@ func main() {
 		message, _ := bufio.NewReader(conn).ReadString('\n')
 		log.Print("Message from OTGW: " + message)
 		if isValidMsg(message) && isDecodableMsgType(message) {
-			log.Println("length message: ", len(message))
-			readable := decodeReadable(message)
-			for _, line := range readable {
-				fmt.Print(line)
-			}
+			//			readable := decodeReadable(message)
+			//			for _, line := range readable {
+			//				fmt.Print(line)
+			//			}
 			fmt.Println(decodeLineProtocol(message))
 		}
 	}
