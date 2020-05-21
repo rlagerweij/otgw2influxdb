@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-const influxMeasurement = "otgw"
+const influxMeasurementName = "otgw"
 
 const cOTGWmsgLength = 11
 
@@ -194,9 +194,9 @@ func decodeReadable(msg string) []string {
 			return output
 		}
 		msgID := v[1]
-		decoder, ok := decoderMapReadable[msgID]
+		decoder, exists := decoderMapReadable[msgID]
 
-		if ok {
+		if exists {
 			switch decoder.highByteType {
 			case cTypeFlag8:
 				log.Println("High byte")
