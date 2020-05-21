@@ -16,13 +16,13 @@ const influxMeasurement = "otgw"
 const cOTGWmsgLength = 11
 
 const (
+	cTypeNone  = 0
 	cTypeU8    = 1 // unsigned 8-bit integer 0 .. 255
 	cTypeU8WDT = 2 // byte representing Day of Week & Time of Day / HB : bits 7,6,5 : day of week / bits 4,3,2,1,0 : hours
 	cTypeS8    = 3 // signed 8-bit integer -128 .. 127 (two’s compliment)
 	cTypeF8_8  = 4 // signed fixed point value : 1 sign bit, 7 integer bit, 8 fractional bits (two’s compliment ie. the LSB of the 16bit binary number represents 1/256 flag8 byte composed of 8 single-bit flags
 	cTypeU16   = 5 // unsigned 16-bit integer 0..65535
 	cTypeS16   = 6 // signed 16-bit integer -32768..32767
-	cTypeNone  = 7
 	cTypeFlag8 = 8 // byte composed of 8 single-bit flags
 )
 
@@ -218,6 +218,8 @@ func decodeReadable(msg string) []string {
 				lowByteOffset = cTypeU8WDT                                              // constant value was set to required offset
 				output = append(output, fmt.Sprintln(decoder.descriptions[0], v[2]>>5)) // top 3 bits
 				output = append(output, fmt.Sprintln(decoder.descriptions[1], v[2]&31)) // bottom 5 bits
+			case cTypeNone:
+				lowByteOffset = cTypeNone // constant value was set to required offset
 			default:
 				output = append(output, fmt.Sprintln("unknown type"))
 			}
