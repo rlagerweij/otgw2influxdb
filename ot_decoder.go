@@ -195,66 +195,6 @@ func getMessageType(msg string) uint8 {
 	return msgType
 }
 
-func decodeReadable(msg string) []string {
-	var output []string
-	var lowByteOffset = 1 // offset on lowbyte decoding is 1 for most types, exception being cTypeFlag8 and cTypeU8WDT
-
-	if len(msg) == cOTGWmsgLength {
-		v, err := hex.DecodeString(msg[1:9])
-		if err != nil {
-			log.Printf("%v\n", err.Error())
-			return output
-		}
-		msgID := v[1]
-		decoder, exists := decoderMapReadable[msgID]
-
-		if exists {
-			switch decoder.highByteType {
-			case cTypeFlag8:
-				log.Println("High byte")
-				lowByteOffset = cTypeFlag8 // constant value was set to required offset
-				for i := 0; i < 7; i++ {
-					output = append(output, fmt.Sprintln(decoder.descriptions[i], decodeFlag8(v[2], byte(i))))
-				}
-			case cTypeF8_8:
-				output = append(output, fmt.Sprintln(decoder.descriptions[0], decodeF8_8(v[2:4])))
-			case cTypeU16:
-				output = append(output, fmt.Sprintln(decoder.descriptions[0], bytesToUInt(v[2:4])))
-			case cTypeS16:
-				output = append(output, fmt.Sprintln(decoder.descriptions[0], int16(bytesToUInt(v[2:4]))))
-			case cTypeU8:
-				output = append(output, fmt.Sprintln(decoder.descriptions[0], bytesToUInt(v[2:3])))
-			case cTypeS8:
-				output = append(output, fmt.Sprintln(decoder.descriptions[0], int8(bytesToUInt(v[2:3]))))
-			case cTypeU8WDT:
-				lowByteOffset = cTypeU8WDT                                              // constant value was set to required offset
-				output = append(output, fmt.Sprintln(decoder.descriptions[0], v[2]>>5)) // top 3 bits
-				output = append(output, fmt.Sprintln(decoder.descriptions[1], v[2]&31)) // bottom 5 bits
-			case cTypeNone:
-				lowByteOffset = cTypeNone // constant value was set to required offset
-			default:
-				output = append(output, fmt.Sprintln("unknown type"))
-			}
-
-			switch decoder.lowByteType {
-			case cTypeFlag8:
-				log.Printf("Low byte: decode flags % 08b \n", v[3])
-				for i := 0; i < 7; i++ {
-					output = append(output, fmt.Sprintln(decoder.descriptions[i+lowByteOffset], byteToBool(v[3], byte(i))))
-				}
-			case cTypeU8:
-				output = append(output, fmt.Sprintln(decoder.descriptions[lowByteOffset], bytesToUInt(v[3:4])))
-			case cTypeS8:
-				output = append(output, fmt.Sprintln(decoder.descriptions[lowByteOffset], int8(bytesToUInt(v[3:4]))))
-			case cTypeNone:
-			default:
-				output = append(output, fmt.Sprintln("unknown type"))
-			}
-		}
-	}
-	return output
-}
-
 func decodeMessage(v []byte, types []uint8, text []string) []string {
 	var output []string
 	var offset = 0 // offset on lowbyte decoding is 1 for most types, exception being cTypeFlag8 and cTypeU8WDT
@@ -313,6 +253,24 @@ func decodeLineProtocol(msg string) string {
 	return output
 }
 
+func decodeReadable(msg string) []string {
+	var output []string
+
+	if isValidMsg(msg) {
+		v, err := hex.DecodeString(msg[1:9])
+		if err != nil {
+			log.Printf("%v\n", err.Error())
+			return output
+		}
+		msgID := v[1]
+		decoder, exists := decoderMapReadable[msgID]
+		if exists {
+			output = decodeMessage(v, []byte{decoder.highByteType, decoder.lowByteType}, decoder.descriptions)
+		}
+	}
+	return output
+}
+
 func isValidMsg(msg string) bool {
 	var valid = true
 
@@ -358,11 +316,11 @@ func main() {
 		message, _ := bufio.NewReader(conn).ReadString('\n')
 		log.Print("Message from OTGW: " + message)
 		if isValidMsg(message) && isDecodableMsgType(message) {
-			//			readable := decodeReadable(message)
-			//			for _, line := range readable {
-			//				fmt.Print(line)
-			//			}
-			fmt.Println(decodeLineProtocol(message))
+			readable := decodeReadable(message)
+			for _, line := range readable {
+				fmt.Println(line)
+			}
+			// fmt.Println(decodeLineProtocol(message))
 		}
 	}
 
