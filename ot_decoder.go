@@ -10,6 +10,11 @@ import (
 	"time"
 )
 
+var (
+	sha1ver   string = "testing" // sha1 revision used to build the program
+	buildTime string = "testing" // when the executable was built
+)
+
 const influxMeasurementName = "otgw"
 
 const cOTGWmsgLength = 11
@@ -305,7 +310,7 @@ var addr = "10.0.0.130:6638"
 
 func main() {
 
-	log.Println("Starting program")
+	log.Printf("Starting program (version: %s / build time: %s )\n", sha1ver, buildTime)
 
 	d := net.Dialer{Timeout: 2 * time.Second}
 	conn, err := d.Dial("tcp", addr)
