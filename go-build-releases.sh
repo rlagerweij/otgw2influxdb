@@ -1,12 +1,23 @@
 #!/bin/bash
 #
+# This script was adapted from: https://gist.github.com/eduncan911/68775dba9d3c028181e4 
+# 
+# The changes aer as follows:
+# - Add the check to see if there are uncommited git changes
+# - Add link time variable for the git hash and build time
+# - Some platforms are disabled by commenting them out
+#
+# The link time variables section should be reverted if your program does not use it
+#
+# -------------------------------------------------------------------------------------------
+#
 # GoLang cross-compile snippet for Go 1.6+ based loosely on Dave Chaney's cross-compile script:
 # http://dave.cheney.net/2012/09/08/an-introduction-to-cross-compilation-with-go
 #
 # To use:
 #
 #   $ cd ~/path-to/my-awesome-project
-#   $ go-build-all
+#   $ go-build-releases
 #
 # Features:
 #
@@ -36,16 +47,21 @@
 # from the standard ports/downloads and therefore removed from this list.
 #
 PLATFORMS="darwin/amd64" # amd64 only as of go1.5
-PLATFORMS="$PLATFORMS windows/amd64 windows/386" # arm compilation not available for Windows
-PLATFORMS="$PLATFORMS linux/amd64 linux/386"
-PLATFORMS="$PLATFORMS linux/ppc64 linux/ppc64le"
-PLATFORMS="$PLATFORMS linux/mips64 linux/mips64le" # experimental in go1.6
+PLATFORMS="$PLATFORMS windows/amd64" # arm compilation not available for Windows
+#PLATFORMS="$PLATFORMS windows/386" # arm compilation not available for Windows
+PLATFORMS="$PLATFORMS linux/amd64" 
+#PLATFORMS="$PLATFORMS linux/386"
+#PLATFORMS="$PLATFORMS linux/ppc64"
+#PLATFORMS="$PLATFORMS linux/ppc64le"
+PLATFORMS="$PLATFORMS linux/mips64" 
+PLATFORMS="$PLATFORMS linux/mips64le" # experimental in go1.6
 PLATFORMS="$PLATFORMS freebsd/amd64"
-PLATFORMS="$PLATFORMS netbsd/amd64" # amd64 only as of go1.6
-PLATFORMS="$PLATFORMS openbsd/amd64" # amd64 only as of go1.6
-PLATFORMS="$PLATFORMS dragonfly/amd64" # amd64 only as of go1.5
-PLATFORMS="$PLATFORMS plan9/amd64 plan9/386" # as of go1.4
-PLATFORMS="$PLATFORMS solaris/amd64" # as of go1.3
+# PLATFORMS="$PLATFORMS netbsd/amd64" # amd64 only as of go1.6
+# PLATFORMS="$PLATFORMS openbsd/amd64" # amd64 only as of go1.6
+# PLATFORMS="$PLATFORMS dragonfly/amd64" # amd64 only as of go1.5
+# PLATFORMS="$PLATFORMS plan9/amd64"
+# PLATFORMS="$PLATFORMS plan9/386" # as of go1.4
+# PLATFORMS="$PLATFORMS solaris/amd64" # as of go1.3
 
 # ARMBUILDS lists the platforms that are currently supported.  From this list
 # we generate the following architectures:
