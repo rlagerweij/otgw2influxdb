@@ -83,7 +83,7 @@ var decoderMapReadable = map[uint8]oTValue{
 	0:   oTValue{[]string{"ch_enabled", "dhw_enabled", "cooling_enabled", "otc_active", "ch2_enabled", "reserved1", "reserved2", "reserved3", "fault_indication", "ch_active", "dhw_active", "flame_active", "cooling_active", "ch2_active", "diagnostic_event", "reserved4"}, cTypeFlag8, cTypeFlag8, []string{"CH enable", "DHW enable", "Cooling enable", "OTC active", "CH2 enable", "reserved", "reserved", "reserved", "Fault indication", "CH mode", "DHW mode", "Flame status", "Cooling status", "CH2 mode", "Diagnostic Event", "reserved"}},
 	1:   oTValue{[]string{"control_setpoint"}, cTypeF8_8, cTypeNone, []string{"Temperature setpoint for the supply from the boiler in degrees C"}},
 	2:   oTValue{[]string{"master_configuration"}, cTypeNone, cTypeU8, []string{"MemberID code of the master"}},
-	3:   oTValue{[]string{"dhw_present", "control_type", "cooling_supported", "dhw_storage_tank_present", "master_control_allowed", "ch2_present", "reserved", "reserved", "reserved", "slave_memberID"}, cTypeFlag8, cTypeU8, []string{"DHW present [ dhw not present, dhw is present ]", "Control type [ modulating, on/off ]", "Cooling config [ cooling not supported, cooling supported]", "DHW config [instantaneous or not-specified, storage tank]", "Master low-off&pump control function [allowed, not allowed]", "CH2 present [CH2 not present, CH2 present]", "reserved", "reserved", "reserved", "MemberID code of the slave"}},
+	3:   oTValue{[]string{"dhw_present", "control_type", "cooling_supported", "dhw_storage_tank_present", "master_control_allowed", "ch2_present", "reserved", "reserved", "slave_memberID"}, cTypeFlag8, cTypeU8, []string{"DHW present [ dhw not present, dhw is present ]", "Control type [ modulating, on/off ]", "Cooling config [ cooling not supported, cooling supported]", "DHW config [instantaneous or not-specified, storage tank]", "Master low-off&pump control function [allowed, not allowed]", "CH2 present [CH2 not present, CH2 present]", "reserved", "reserved", "reserved", "MemberID code of the slave"}},
 	5:   oTValue{[]string{"service_required", "remote_reset_enabled", "low_water_pressure_fault", "gas_flame_fault", "air_pressure_fault", "water_over_temperture_fault", "reserved", "reserved", "oem_fault_code"}, cTypeFlag8, cTypeU8, []string{"Service request [service not req’d, service required]", "Lockout-reset [ remote reset disabled, rr enabled]", "Low water press [no WP fault, water pressure fault]", "Gas/flame fault [ no G/F fault, gas/flame fault ]", "Air press fault [ no AP fault, air pressure fault ]", "Water over-temp[no OvT fault, over-temperat. Fault]", "reserved", "reserved", "OEM fault code u8 0..255 An OEM-specific fault/error code"}},
 	7:   oTValue{[]string{"cooling_control_signal"}, cTypeF8_8, cTypeNone, []string{"Signal for cooling plant"}},
 	8:   oTValue{[]string{"control_setpoint_2"}, cTypeF8_8, cTypeNone, []string{"Temperature setpoint for the supply from the boiler for circuit 2 in degrees C"}},
@@ -120,11 +120,11 @@ var decoderMapReadable = map[uint8]oTValue{
 	115: oTValue{[]string{"oem_diagnostic_code"}, cTypeU16, cTypeNone, []string{"OEM-specific diagnostic/service code"}},
 	116: oTValue{[]string{"burner_starts"}, cTypeU16, cTypeNone, []string{"Number of starts burner"}},
 	117: oTValue{[]string{"ch_pump_starts"}, cTypeU16, cTypeNone, []string{"Number of starts CH pump"}},
-	118: oTValue{[]string{"dhw_pump/valve_starts"}, cTypeU16, cTypeNone, []string{"Number of starts DHW pump/valve"}},
+	118: oTValue{[]string{"dhw_pump_valve_starts"}, cTypeU16, cTypeNone, []string{"Number of starts DHW pump/valve"}},
 	119: oTValue{[]string{"dhw_burner_starts"}, cTypeU16, cTypeNone, []string{"Number of starts burner in DHW mode"}},
 	120: oTValue{[]string{"burner_operation_hours"}, cTypeU16, cTypeNone, []string{"Number of hours that burner is in operation (i.e.flame on)"}},
 	121: oTValue{[]string{"ch_pump_operation_hours"}, cTypeU16, cTypeNone, []string{"Number of hours that CH pump has been running"}},
-	122: oTValue{[]string{"dhw_pump/valve_operation_hours"}, cTypeU16, cTypeNone, []string{"Number of hours that DHW pump has been running or DHW valve has been opened"}},
+	122: oTValue{[]string{"dhw_pump_valve_operation_hours"}, cTypeU16, cTypeNone, []string{"Number of hours that DHW pump has been running or DHW valve has been opened"}},
 	123: oTValue{[]string{"dhw_burner_operation_hours"}, cTypeU16, cTypeNone, []string{"Number of hours that burner is in operation during DHW mode"}},
 	124: oTValue{[]string{"opentherm_version_master"}, cTypeF8_8, cTypeNone, []string{"The implemented version of the OpenTherm Protocol Specification in the master"}},
 	125: oTValue{[]string{"opentherm_version_slave"}, cTypeF8_8, cTypeNone, []string{"The implemented version of the OpenTherm Protocol Specification in the slave"}},
@@ -227,8 +227,8 @@ func decodeValues(v []byte, types []uint8) []string {
 	for index, valueType := range types {
 		switch valueType {
 		case cTypeFlag8:
-			for i := 0; i < 7; i++ {
-				output = append(output, decodeFlag8(v[2], byte(i)))
+			for i := 0; i <= 7; i++ {
+				output = append(output, decodeFlag8(v[2+index], byte(i)))
 			}
 			offset += 8 // after decoding flags the next decoder should start with an offset of 8
 		case cTypeF8_8:
