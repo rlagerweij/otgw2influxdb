@@ -221,7 +221,6 @@ func decodeMessage(v []byte, types []uint8, text []string) []string {
 
 func decodeLineProtocol(msg string) string {
 	var output string
-	const influxMeasurementName = "otgw"
 
 	if isValidMsg(msg) {
 		v, err := hex.DecodeString(msg[1:9])
@@ -233,7 +232,7 @@ func decodeLineProtocol(msg string) string {
 		decoder, exists := decoderMapReadable[msgID]
 		if exists {
 			fields := decodeMessage(v, []byte{decoder.highByteType, decoder.lowByteType}, decoder.fields)
-			output = influxMeasurementName
+			output = config["influxMeasurementName"]
 			for _, field := range fields {
 				output += " " + field
 			}
