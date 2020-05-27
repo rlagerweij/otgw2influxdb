@@ -80,7 +80,9 @@ func main() {
 			}
 			if strings.Contains(config["decode_line_protocol"], "YES") {
 				lp := decodeLineProtocol(message)
-				fmt.Println(lp)
+				if len(lp) > 0 {
+					fmt.Println(lp)
+				}
 			}
 		}
 	}

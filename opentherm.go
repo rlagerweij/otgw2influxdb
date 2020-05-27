@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 )
 
@@ -219,6 +220,41 @@ func decodeMessage(v []byte, types []uint8, text []string) []string {
 	return output
 }
 
+func decodeValues(v []byte, types []uint8) []string {
+	var output []string
+	var offset = 0 // offset on lowbyte decoding is 1 for most types, exception being cTypeFlag8 and cTypeU8WDT
+
+	for index, valueType := range types {
+		switch valueType {
+		case cTypeFlag8:
+			for i := 0; i < 7; i++ {
+				output = append(output, decodeFlag8(v[2], byte(i)))
+			}
+			offset += 8 // after decoding flags the next decoder should start with an offset of 8
+		case cTypeF8_8:
+			output = append(output, decodeF8_8(v[2:4]))
+		case cTypeU16:
+			output = append(output, fmt.Sprintf("%v", bytesToUInt(v[2:4])))
+		case cTypeS16:
+			output = append(output, fmt.Sprintf("%v", int16(bytesToUInt(v[2:4]))))
+		case cTypeU8:
+			output = append(output, fmt.Sprintf("%v", bytesToUInt(v[2+index:3+index])))
+			offset += 1 // after decoding an 8 bit number the next decoder should start with an offset of 1
+		case cTypeS8:
+			output = append(output, fmt.Sprintf("%v", int8(bytesToUInt(v[2+index:3+index]))))
+			offset += 1 // after decoding an 8 bit number the next decoder should start with an offset of 1
+		case cTypeU8WDT:
+			output = append(output, fmt.Sprintf("%v", v[2]>>5)) // top 3 bits
+			output = append(output, fmt.Sprintf("%v", v[2]&31)) // bottom 5 bits
+			offset += 1                                         // after decoding this type the next decoder should start with an offset of 1
+		case cTypeNone:
+		default:
+			log.Println("unknown type:", valueType)
+		}
+	}
+	return output
+}
+
 func decodeLineProtocol(msg string) string {
 	var output string
 
@@ -231,12 +267,15 @@ func decodeLineProtocol(msg string) string {
 		msgID := v[1]
 		decoder, exists := decoderMapReadable[msgID]
 		if exists {
-			fields := decodeMessage(v, []byte{decoder.highByteType, decoder.lowByteType}, decoder.fields)
-			output = config["influxMeasurementName"]
-			for _, field := range fields {
-				output += " " + field
+			values := decodeValues(v, []byte{decoder.highByteType, decoder.lowByteType})
+			for n, field := range decoder.fields {
+				if strings.Contains(config[fmt.Sprintf("store_%s", field)], "YES") {
+					output += fmt.Sprintf(" %s=%s", field, values[n])
+				}
 			}
-			output += " " + fmt.Sprint(time.Now().UnixNano())
+		}
+		if len(output) > 0 {
+			output = fmt.Sprintf("%s%s %v", config["influxMeasurementName"], output, time.Now().UnixNano())
 		}
 	}
 	return output
