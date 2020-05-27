@@ -306,7 +306,7 @@ func isValidMsg(msg string) bool {
 	valid = valid && (msg[0:1] == "T" || msg[0:1] == "B")
 
 	if !valid {
-		log.Println("Received invalid message:", msg)
+		log.Print("Received invalid message:", msg)
 	}
 
 	return valid
