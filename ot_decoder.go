@@ -2,9 +2,11 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -32,7 +34,7 @@ func readConfig() {
 	for scanner.Scan() {
 		line := scanner.Text()
 		if strings.Contains(line, "=") {
-			parts := strings.Split(line, "=")
+			parts := strings.SplitN(line, "=", 2)
 			key := strings.TrimSpace(parts[0])
 			//	parts = strings.Split(parts[1], "#")
 			val := strings.TrimSpace(strings.Split(parts[1], "#")[0])
@@ -55,6 +57,27 @@ func checkErrorFatal(err error) {
 	if err != nil {
 		log.Printf("%v\n", err.Error())
 		os.Exit(1)
+	}
+}
+
+func sendToInfluxDB(lp string) {
+
+	client := &http.Client{}
+	log.Println(config["influxURL"])
+	req, err := http.NewRequest("POST", config["influxURL"], bytes.NewBufferString(lp))
+	if err != nil {
+		log.Println("creating http request failed: ", err.Error())
+	}
+	req.Header.Add("Authentication", fmt.Sprintf("Token %s:%s", config["influxUser"], config["influxPass"]))
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Println("http POST to influxdb failed: ", err.Error())
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 204 {
+		log.Println("http POST to influxdb returned status:", resp.Status)
 	}
 }
 
@@ -82,6 +105,7 @@ func main() {
 				lp := decodeLineProtocol(message)
 				if len(lp) > 0 {
 					fmt.Println(lp)
+					sendToInfluxDB(lp)
 				}
 			}
 		}
