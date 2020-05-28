@@ -275,7 +275,7 @@ func decodeLineProtocol(msg string) string {
 			}
 		}
 		if len(output) > 0 {
-			output = fmt.Sprintf("%s%s %v", config["influxMeasurementName"], output, time.Now().UnixNano())
+			output = fmt.Sprintf("%s%s %v\n", config["influxMeasurementName"], output, time.Now().UnixNano())
 		}
 	}
 	return output

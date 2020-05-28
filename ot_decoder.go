@@ -19,6 +19,11 @@ var ( // these variable as set at build time, they do not belong in the config m
 
 var config map[string]string
 
+var dbBuffer string
+var dbBufferCount int
+
+const dbBufferMaxCount = 10
+
 func readConfig() {
 	config = make(map[string]string)
 	file, err := os.Open("ot_decoder.cfg")
@@ -62,23 +67,30 @@ func checkErrorFatal(err error) {
 
 func sendToInfluxDB(lp string) {
 
-	client := &http.Client{}
-	log.Println(config["influxURL"])
-	req, err := http.NewRequest("POST", config["influxURL"], bytes.NewBufferString(lp))
-	if err != nil {
-		log.Println("creating http request failed: ", err.Error())
-	}
-	req.Header.Add("Authentication", fmt.Sprintf("Token %s:%s", config["influxUser"], config["influxPass"]))
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Println("http POST to influxdb failed: ", err.Error())
+	dbBuffer += lp
+	dbBufferCount++
+	if dbBufferCount >= dbBufferMaxCount {
+
+		client := &http.Client{}
+			req, err := http.NewRequest("POST", config["influxURL"], bytes.NewBufferString(dbBuffer))
+		if err != nil {
+			log.Println("creating http request failed: ", err.Error())
+		}
+		req.Header.Add("Authentication", fmt.Sprintf("Token %s:%s", config["influxUser"], config["influxPass"]))
+		resp, err := client.Do(req)
+		if err != nil {
+			log.Println("http POST to influxdb failed: ", err.Error())
+		}
+
+		defer resp.Body.Close()
+
+		if resp.StatusCode != 204 {
+			log.Println("http POST to influxdb returned status:", resp.Status)
+		}
+		dbBuffer = ""
+		dbBufferCount = 0
 	}
 
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 204 {
-		log.Println("http POST to influxdb returned status:", resp.Status)
-	}
 }
 
 func main() {
@@ -104,8 +116,8 @@ func main() {
 			if strings.Contains(config["decode_line_protocol"], "YES") {
 				lp := decodeLineProtocol(message)
 				if len(lp) > 0 {
-					fmt.Println(lp)
-					sendToInfluxDB(lp)
+					fmt.Print(lp)
+					// sendToInfluxDB(lp)
 				}
 			}
 		}
