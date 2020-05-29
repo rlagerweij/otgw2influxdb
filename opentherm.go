@@ -230,7 +230,6 @@ func decodeValues(v []byte, types []uint8) []string {
 			for i := 0; i <= 7; i++ {
 				output = append(output, decodeFlag8(v[2+index], byte(i)))
 			}
-			offset += 8 // after decoding flags the next decoder should start with an offset of 8
 		case cTypeF8_8:
 			output = append(output, decodeF8_8(v[2:4]))
 		case cTypeU16:
@@ -242,11 +241,9 @@ func decodeValues(v []byte, types []uint8) []string {
 			offset += 1 // after decoding an 8 bit number the next decoder should start with an offset of 1
 		case cTypeS8:
 			output = append(output, fmt.Sprintf("%v", int8(bytesToUInt(v[2+index:3+index]))))
-			offset += 1 // after decoding an 8 bit number the next decoder should start with an offset of 1
 		case cTypeU8WDT:
 			output = append(output, fmt.Sprintf("%v", v[2]>>5)) // top 3 bits
 			output = append(output, fmt.Sprintf("%v", v[2]&31)) // bottom 5 bits
-			offset += 1                                         // after decoding this type the next decoder should start with an offset of 1
 		case cTypeNone:
 		default:
 			log.Println("unknown type:", valueType)
