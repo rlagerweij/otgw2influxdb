@@ -253,7 +253,7 @@ func decodeValues(v []byte, types []uint8) []string {
 }
 
 func decodeLineProtocol(msg string) string {
-	var output string
+	var output, sep string
 
 	if isValidMsg(msg) {
 		v, err := hex.DecodeString(msg[1:9])
@@ -263,16 +263,18 @@ func decodeLineProtocol(msg string) string {
 		}
 		msgID := v[1]
 		decoder, exists := decoderMapReadable[msgID]
+		sep = "" // no separator for the first field
 		if exists {
 			values := decodeValues(v, []byte{decoder.highByteType, decoder.lowByteType})
 			for n, field := range decoder.fields {
 				if strings.Contains(config[fmt.Sprintf("store_%s", field)], "YES") {
-					output += fmt.Sprintf(" %s=%s", field, values[n])
+					output += fmt.Sprintf("%s%s=%s", sep, field, values[n])
+					sep = "," // prepare for a possible next field
 				}
 			}
 		}
 		if len(output) > 0 {
-			output = fmt.Sprintf("%s%s %v\n", config["influxMeasurementName"], output, time.Now().UnixNano())
+			output = fmt.Sprintf("%s %s %v\n", config["influxMeasurementName"], output, time.Now().Unix())
 		}
 	}
 	return output
