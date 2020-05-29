@@ -282,7 +282,7 @@ func decodeReadable(msg string) []string {
 	var output []string
 
 	if isValidMsg(msg) {
-		v, err := hex.DecodeString(msg[1:9])
+		v, err := hex.DecodeString(msg[1:9]) // leave of the T or B from the front and the \n off the back
 		if err != nil {
 			log.Printf("%v\n", err.Error())
 			return output
