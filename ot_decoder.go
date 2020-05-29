@@ -65,38 +65,36 @@ func checkErrorFatal(err error) {
 	}
 }
 
-func sendToInfluxDB(lp string) {
+func sendToInfluxDB(out chan string) {
 
-	dbBuffer += lp
-	dbBufferCount++
-	if dbBufferCount >= dbBufferMaxCount {
-
-		client := &http.Client{}
+	for {
+		lp := <-out
+		dbBuffer += lp
+		dbBufferCount++
+		if dbBufferCount >= dbBufferMaxCount {
+			client := &http.Client{}
 			req, err := http.NewRequest("POST", config["influxURL"], bytes.NewBufferString(dbBuffer))
-		if err != nil {
-			log.Println("creating http request failed: ", err.Error())
-		}
-		req.Header.Add("Authentication", fmt.Sprintf("Token %s:%s", config["influxUser"], config["influxPass"]))
-		resp, err := client.Do(req)
-		if err != nil {
-			log.Println("http POST to influxdb failed: ", err.Error())
-		}
+			if err != nil {
+				log.Println("creating http request failed: ", err.Error())
+			}
+			req.Header.Add("Authentication", fmt.Sprintf("Token %s:%s", config["influxUser"], config["influxPass"]))
+			resp, err := client.Do(req)
+			if err != nil {
+				log.Println("http POST to influxdb failed: ", err.Error())
+			}
 
-		defer resp.Body.Close()
+			defer resp.Body.Close()
 
-		if resp.StatusCode != 204 {
-			log.Println("http POST to influxdb returned status:", resp.Status)
+			if resp.StatusCode != 204 {
+				log.Println("http POST to influxdb returned status:", resp.Status)
+			}
+			dbBuffer = ""
+			dbBufferCount = 0
 		}
-		dbBuffer = ""
-		dbBufferCount = 0
 	}
-
 }
 
-func main() {
-
-	readConfig()
-	log.Printf("Starting program (version: %s / build time: %s )\n", sha1ver, buildTime)
+func readMessagesFromOTGW(c chan string) {
 
 	d := net.Dialer{Timeout: 2 * time.Second}
 	conn, err := d.Dial("tcp", config["OTGWaddress"])
@@ -104,8 +102,33 @@ func main() {
 	checkErrorFatal(err)
 
 	for {
-		message, _ := bufio.NewReader(conn).ReadString('\n')
-		//		log.Print("Message from OTGW: " + message)
+		msgIn, err := bufio.NewReader(conn).ReadString('\n')
+		if err != nil {
+			log.Println(err)
+		} else {
+			if len(c) == cap(c) {
+				dumpValue := <-c
+				dumpValue += "now used" // go insists that we use values we declare
+			}
+			c <- msgIn
+		}
+	}
+}
+
+func main() {
+
+	readConfig()
+	log.Printf("Starting program (version: %s / build time: %s )\n", sha1ver, buildTime)
+
+	receiveMessages := make(chan string, 10)
+	sendMessages := make(chan string, 10)
+
+	go readMessagesFromOTGW(receiveMessages)
+	go sendToInfluxDB(sendMessages)
+
+	for {
+		message := <-receiveMessages
+		// log.Print("Message from OTGW: " + message)
 		if isValidMsg(message) && isDecodableMsgType(message) {
 			if strings.Contains(config["decode_readable"], "YES") {
 				readable := decodeReadable(message)
@@ -116,8 +139,8 @@ func main() {
 			if strings.Contains(config["decode_line_protocol"], "YES") {
 				lp := decodeLineProtocol(message)
 				if len(lp) > 0 {
-					fmt.Print(lp)
-					// sendToInfluxDB(lp)
+					// fmt.Print(lp)
+					sendMessages <- lp
 				}
 			}
 		}
