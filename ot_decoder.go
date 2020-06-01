@@ -24,6 +24,8 @@ var dbBufferCount int
 
 const dbBufferMaxCount = 10
 
+var influxWriteURL = "http://%s:%s/api/v2/write?bucket=%s&precision=s"
+
 func readConfig() {
 	config = make(map[string]string)
 	file, err := os.Open("ot_decoder.cfg")
@@ -67,13 +69,18 @@ func checkErrorFatal(err error) {
 
 func sendToInfluxDB(out chan string) {
 
+	influxURL := fmt.Sprintf(influxWriteURL,
+		config["influxIP"],
+		config["influxPort"],
+		config["influxBucket"])
+
 	for {
 		lp := <-out
 		dbBuffer += lp
 		dbBufferCount++
 		if dbBufferCount >= dbBufferMaxCount {
 			client := &http.Client{}
-			req, err := http.NewRequest("POST", config["influxURL"], bytes.NewBufferString(dbBuffer))
+			req, err := http.NewRequest("POST", influxURL, bytes.NewBufferString(dbBuffer))
 			if err != nil {
 				log.Println("creating http request failed: ", err.Error())
 			}
