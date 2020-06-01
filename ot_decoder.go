@@ -40,11 +40,11 @@ func readConfig() {
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
-		if strings.Contains(line, "=") {
-			parts := strings.SplitN(line, "=", 2)
-			key := strings.TrimSpace(parts[0])
-			//	parts = strings.Split(parts[1], "#")
-			val := strings.TrimSpace(strings.Split(parts[1], "#")[0])
+		parts := strings.SplitN(line, "#", 2) // split off any comments
+		if strings.Contains(parts[0], "=") {
+			kv := strings.SplitN(parts[0], "=", 2)
+			key := strings.TrimSpace(kv[0])
+			val := strings.TrimSpace(kv[1])
 			config[key] = val
 		}
 	}
