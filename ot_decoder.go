@@ -57,23 +57,6 @@ func readConfig() {
 			config[key] = val
 		}
 	}
-
-	if err := scanner.Err(); err != nil {
-		log.Fatal(err)
-	}
-}
-
-func checkErrorLog(err error) {
-	if err != nil {
-		log.Printf("%v\n", err.Error())
-	}
-}
-
-func checkErrorFatal(err error) {
-	if err != nil {
-		log.Printf("%v\n", err.Error())
-		os.Exit(1)
-	}
 }
 
 func sendToInfluxBuffer(out chan string) {
@@ -147,7 +130,6 @@ func startRelayListener(c chan net.Conn) {
 func sendRelayMessages(m chan string, c chan net.Conn) {
 	var currentMsg string
 
-	//	conns := make([]net.Conn, 5)
 	conns := list.New()
 
 	for {
@@ -164,7 +146,6 @@ func sendRelayMessages(m chan string, c chan net.Conn) {
 				_, err := conItem.Write([]byte(currentMsg))
 				if err != nil {
 					log.Println("relay error writing message:", err)
-					// implement emoving conn from the slice
 					conns.Remove(con)
 				}
 			}
@@ -273,7 +254,6 @@ func main() {
 			if strings.Contains(config["decode_line_protocol"], "YES") {
 				lp := decodeLineProtocol(message)
 				if len(lp) > 0 {
-					// fmt.Print(lp)
 					sendMessages <- lp
 				}
 			}
