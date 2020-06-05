@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"container/list"
 	"errors"
 	"fmt"
 	"io"
@@ -119,9 +120,51 @@ func sendToInfluxDB(postBody string) error {
 	}
 	return err
 }
+
+func startRelayListener(c chan net.Conn) {
+
+	l, err := net.Listen("tcp", fmt.Sprintf(":%s", config["relay_tcp_port"]))
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer l.Close()
+	for {
+		conn, err := l.Accept()
+		if err != nil {
+			log.Println("relay client connection error: ", err)
+		} else {
+			c <- conn
+		}
+	}
+}
+
+func sendRelayMessages(m chan string, c chan net.Conn) {
+	var currentMsg string
+
+	//	conns := make([]net.Conn, 5)
+	conns := list.New()
+
+	for {
+		select {
+		case conn := <-c:
+			{
+				log.Printf("relay client connected from: %s\n", conn.RemoteAddr().String())
+				conns.PushBack(conn)
 			}
-			dbBuffer = ""
-			dbBufferCount = 0
+		case currentMsg = <-m:
+			for con := conns.Front(); con != nil; con = con.Next() {
+				conItem := con.Value.(net.Conn)
+				conItem.SetWriteDeadline(time.Now().Add(time.Second * 1))
+				_, err := conItem.Write([]byte(currentMsg))
+				if err != nil {
+					log.Println("relay error writing message:", err)
+					// implement emoving conn from the slice
+					conns.Remove(con)
+				}
+			}
+		default:
+			// include default to make the above non-blocking
 		}
 	}
 }
@@ -190,13 +233,23 @@ func main() {
 
 	receiveMessages := make(chan string, 10)
 	sendMessages := make(chan string, 10)
+	relayMessages := make(chan string, 10)
+	relayClients := make(chan net.Conn)
 
 	go readMessagesFromOTGW(receiveMessages)
 	go sendToInfluxBuffer(sendMessages)
+	go startRelayListener(relayClients)
+	go sendRelayMessages(relayMessages, relayClients)
 
 	for {
 		message := <-receiveMessages
 		// log.Print("Message from OTGW: " + message)
+		if len(relayMessages) == cap(relayMessages) {
+			dumpValue = <-relayMessages
+			//			dumpValue += "now used" // go insists that we use values we declare
+		}
+		relayMessages <- message
+
 		if isValidMsg(message) && isDecodableMsgType(message) {
 			if strings.Contains(config["decode_readable"], "YES") {
 				readable := decodeReadable(message)
