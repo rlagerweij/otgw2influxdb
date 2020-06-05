@@ -96,14 +96,14 @@ else # lets start building
   OUTPUT=${SOURCE_FILE:-$CURRENT_DIRECTORY} # if no src file given, use current dir name
   NOW=$(date +'%Y-%m-%d_%T')
   HASH=$(git rev-parse --short HEAD)
-  LD_FLAGS=$(echo "-X main.sha1ver=$HASH -X main.buildTime=$NOW")
+  LD_FLAGS=$(echo "-X 'main.sha1ver=$HASH' -X 'main.buildTime=$NOW'")
 
   for PLATFORM in $PLATFORMS; do
     GOOS=${PLATFORM%/*}
     GOARCH=${PLATFORM#*/}
     BIN_FILENAME="${OUTPUT}-${GOOS}-${GOARCH}"
     if [[ "${GOOS}" == "windows" ]]; then BIN_FILENAME="${BIN_FILENAME}.exe"; fi
-    CMD="GOOS=${GOOS} GOARCH=${GOARCH} go build -ld_flags ${LD_FLAGS} -o ${BIN_FILENAME} $@"
+    CMD="GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags=\"${LD_FLAGS}\" -o ${BIN_FILENAME} $@"
     echo "${CMD}"
     eval $CMD || FAILURES="${FAILURES} ${PLATFORM}"
   done
