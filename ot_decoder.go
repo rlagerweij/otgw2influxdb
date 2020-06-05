@@ -145,10 +145,24 @@ func readMessagesFromOTGW(c chan string) {
 	}
 }
 
+func influxTest() bool {
+
+	err := sendToInfluxDB("")
+	if err != nil {
+		log.Println("influxdb test error: ", err)
+		return false
+	}
+	return true
+}
+
 func main() {
 
 	readConfig()
 	log.Printf("Starting program (version: %s / build time: %s )\n", sha1ver, buildTime)
+
+	if !influxTest() {
+		log.Fatal("Could not connect to influxdb. Please check the settings in ot_decoder.cfg")
+	}
 
 	receiveMessages := make(chan string, 10)
 	sendMessages := make(chan string, 10)
