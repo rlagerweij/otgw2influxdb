@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -22,7 +23,7 @@ var config map[string]string
 var dbBuffer string
 var dbBufferCount int
 
-const dbBufferMaxCount = 10
+const dbBufferMaxCount = 20 // number of influx points to collect before sending them to the database
 
 var influxWriteURL = "http://%s:%s/api/v2/write?bucket=%s&precision=s"
 
@@ -67,33 +68,55 @@ func checkErrorFatal(err error) {
 	}
 }
 
-func sendToInfluxDB(out chan string) {
+func sendToInfluxBuffer(out chan string) {
+	var msgWritten = 0
+
+	for {
+		lp := <-out
+		dbBuffer += lp
+		dbBufferCount++
+		// log.Print("Added message ", dbBufferCount, " to the buffer:", lp)
+		if dbBufferCount >= dbBufferMaxCount {
+			err := sendToInfluxDB(dbBuffer)
+			if err != nil {
+				log.Println("Could not submit data to influxdb. Dropping data points")
+			} else {
+				msgWritten += dbBufferCount
+				log.Printf("submitted %v points to influxdb. total points written: %v\n", dbBufferCount, msgWritten)
+			}
+			dbBuffer = ""
+			dbBufferCount = 0
+		}
+	}
+}
+
+func sendToInfluxDB(postBody string) error {
 
 	influxURL := fmt.Sprintf(influxWriteURL,
 		config["influxIP"],
 		config["influxPort"],
 		config["influxBucket"])
 
-	for {
-		lp := <-out
-		dbBuffer += lp
-		dbBufferCount++
-		if dbBufferCount >= dbBufferMaxCount {
-			client := &http.Client{}
-			req, err := http.NewRequest("POST", influxURL, bytes.NewBufferString(dbBuffer))
-			if err != nil {
-				log.Println("creating http request failed: ", err.Error())
-			}
-			req.Header.Add("Authentication", fmt.Sprintf("Token %s:%s", config["influxUser"], config["influxPass"]))
-			resp, err := client.Do(req)
-			if err != nil {
-				log.Println("http POST to influxdb failed: ", err.Error())
-			}
+	client := &http.Client{}
+	req, err := http.NewRequest("POST", influxURL, bytes.NewBufferString(postBody))
+	if err != nil {
+		log.Println("creating http request failed: ", err.Error())
+	}
+	// log.Println(req)
+	req.Header.Add("Authentication", fmt.Sprintf("Token %s:%s", config["influxUser"], config["influxPass"]))
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Println("http POST to influxdb failed: ", err.Error())
+	}
 
-			defer resp.Body.Close()
+	defer resp.Body.Close()
 
-			if resp.StatusCode != 204 {
-				log.Println("http POST to influxdb returned status:", resp.Status)
+	if resp.StatusCode != 204 {
+		log.Println("http POST to influxdb returned status:", resp.Status)
+		err = errors.New("Database does not accept data. Check settings")
+	}
+	return err
+}
 			}
 			dbBuffer = ""
 			dbBufferCount = 0
@@ -131,7 +154,7 @@ func main() {
 	sendMessages := make(chan string, 10)
 
 	go readMessagesFromOTGW(receiveMessages)
-	go sendToInfluxDB(sendMessages)
+	go sendToInfluxBuffer(sendMessages)
 
 	for {
 		message := <-receiveMessages
