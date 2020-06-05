@@ -5,8 +5,10 @@ import (
 	"bytes"
 	"container/list"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -29,6 +31,9 @@ var dumpValue string // used to discard messages when buffers are full
 const dbBufferMaxCount = 20 // number of influx points to collect before sending them to the database
 
 var influxWriteURL = "http://%s:%s/api/v2/write?bucket=%s&precision=s"
+
+var logVerbose *log.Logger
+var verboseFlagSet = false
 
 func readConfig() {
 	config = make(map[string]string)
@@ -78,14 +83,14 @@ func sendToInfluxBuffer(out chan string) {
 		lp := <-out
 		dbBuffer += lp
 		dbBufferCount++
-		// log.Print("Added message ", dbBufferCount, " to the buffer:", lp)
+		logVerbose.Print("Added message ", dbBufferCount, " to the buffer:", lp)
 		if dbBufferCount >= dbBufferMaxCount {
 			err := sendToInfluxDB(dbBuffer)
 			if err != nil {
 				log.Println("Could not submit data to influxdb. Dropping data points")
 			} else {
 				msgWritten += dbBufferCount
-				log.Printf("submitted %v points to influxdb. total points written: %v\n", dbBufferCount, msgWritten)
+				logVerbose.Printf("submitted %v points to influxdb. total points written: %v\n", dbBufferCount, msgWritten)
 			}
 			dbBuffer = ""
 			dbBufferCount = 0
@@ -223,9 +228,17 @@ func influxTest() bool {
 }
 
 func main() {
+	log.Printf("Starting program (version: %s / build time: %s )\n", sha1ver, buildTime)
+	flag.BoolVar(&verboseFlagSet, "v", false, ": set logging to verbose. Main use is testing, creates very large logs")
+	flag.Parse()
+
+	if verboseFlagSet {
+		logVerbose = log.New(os.Stdout, "", log.Ldate|log.Ltime)
+	} else {
+		logVerbose = log.New(ioutil.Discard, "", log.Ldate|log.Ltime)
+	}
 
 	readConfig()
-	log.Printf("Starting program (version: %s / build time: %s )\n", sha1ver, buildTime)
 
 	if !influxTest() {
 		log.Fatal("Could not connect to influxdb. Please check the settings in ot_decoder.cfg")
@@ -243,7 +256,7 @@ func main() {
 
 	for {
 		message := <-receiveMessages
-		// log.Print("Message from OTGW: " + message)
+		logVerbose.Print("Message from OTGW: " + message)
 		if len(relayMessages) == cap(relayMessages) {
 			dumpValue = <-relayMessages
 			//			dumpValue += "now used" // go insists that we use values we declare

@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/hex"
 	"fmt"
-	"log"
 	"strings"
 	"time"
 )
@@ -178,7 +177,7 @@ func getMessageType(msg string) uint8 {
 	v, err := hex.DecodeString(msg[1:3])
 	//	fmt.Println("decoding type from ", v[0])
 	if err != nil {
-		log.Printf("%v\n", err.Error())
+		logVerbose.Printf("message type hex decoder error: %v\n", err.Error())
 		return cDataInvalid
 	}
 	msgType = uint8((v[0] >> 4) & 7)
@@ -214,7 +213,7 @@ func decodeMessage(v []byte, types []uint8, text []string) []string {
 			offset += 1                                                            // after decoding this type the next decoder should start with an offset of 1
 		case cTypeNone:
 		default:
-			log.Println("unknown type:", valueType)
+			logVerbose.Println("unknown Opentherm type:", valueType)
 		}
 	}
 	return output
@@ -246,7 +245,7 @@ func decodeValues(v []byte, types []uint8) []string {
 			output = append(output, fmt.Sprintf("%v", v[2]&31)) // bottom 5 bits
 		case cTypeNone:
 		default:
-			log.Println("unknown type:", valueType)
+			logVerbose.Println("unknown opentherm type:", valueType)
 		}
 	}
 	return output
@@ -258,10 +257,11 @@ func decodeLineProtocol(msg string) string {
 	if isValidMsg(msg) {
 		v, err := hex.DecodeString(msg[1:9])
 		if err != nil {
-			log.Printf("%v\n", err.Error())
+			logVerbose.Printf("%v\n", err.Error())
 			return output
 		}
 		msgID := v[1]
+		logVerbose.Printf("Decoding LP for message ID %03d with payload %s \n", msgID, msg[1:9])
 		decoder, exists := decoderMapReadable[msgID]
 		sep = "" // no separator for the first field
 		if exists {
@@ -286,7 +286,7 @@ func decodeReadable(msg string) []string {
 	if isValidMsg(msg) {
 		v, err := hex.DecodeString(msg[1:9]) // leave of the T or B from the front and the \n off the back
 		if err != nil {
-			log.Printf("%v\n", err.Error())
+			logVerbose.Printf("hex decoder error: %v\n", err.Error())
 			return output
 		}
 		msgID := v[1]
@@ -305,7 +305,7 @@ func isValidMsg(msg string) bool {
 	valid = valid && (msg[0:1] == "T" || msg[0:1] == "B")
 
 	if !valid {
-		log.Print("Received invalid message:", msg)
+		logVerbose.Print("Received invalid message:", msg)
 	}
 
 	return valid
@@ -316,7 +316,7 @@ func isDecodableMsgType(msg string) bool {
 	if otType == cDataInvalid ||
 		otType == cUnknownDataID ||
 		otType == cInvalidData {
-		log.Println("OT message contains invalid or unkonw data type:", msg)
+		logVerbose.Println("OT message contains invalid or unkonw data type:", msg)
 	}
 	// only the acknowledgements are worth decoding
 	return (otType == cReadAck || otType == cWriteAck)
