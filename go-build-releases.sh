@@ -101,11 +101,14 @@ else # lets start building
   for PLATFORM in $PLATFORMS; do
     GOOS=${PLATFORM%/*}
     GOARCH=${PLATFORM#*/}
-    BIN_FILENAME="${OUTPUT}-${GOOS}-${GOARCH}"
+    BASE_FILENAME="${OUTPUT}-${GOOS}-${GOARCH}"
+    BIN_FILENAME="${BASE_FILENAME}"
     if [[ "${GOOS}" == "windows" ]]; then BIN_FILENAME="${BIN_FILENAME}.exe"; fi
     CMD="GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags=\"${LD_FLAGS}\" -o ${BIN_FILENAME} $@"
     echo "${CMD}"
     eval $CMD || FAILURES="${FAILURES} ${PLATFORM}"
+    zip -m ${BASE_FILENAME} ${BIN_FILENAME}
+    zip ${BASE_FILENAME}.zip ot_decoder.example.cfg
   done
 
   # ARM builds
