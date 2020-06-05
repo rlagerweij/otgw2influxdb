@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -22,6 +23,7 @@ var config map[string]string
 
 var dbBuffer string
 var dbBufferCount int
+var dumpValue string // used to discard messages when buffers are full
 
 const dbBufferMaxCount = 20 // number of influx points to collect before sending them to the database
 
@@ -126,21 +128,43 @@ func sendToInfluxDB(postBody string) error {
 
 func readMessagesFromOTGW(c chan string) {
 
-	d := net.Dialer{Timeout: 2 * time.Second}
-	conn, err := d.Dial("tcp", config["OTGWaddress"])
-
-	checkErrorFatal(err)
+	var connSuccess = false // used to indicate whether there has ever been a successful connection
+	var connRetry = 0
 
 	for {
-		msgIn, err := bufio.NewReader(conn).ReadString('\n')
+		d := net.Dialer{Timeout: 2 * time.Second}
+		conn, err := d.Dial("tcp", config["OTGWaddress"])
+
 		if err != nil {
-			log.Println(err)
-		} else {
-			if len(c) == cap(c) {
-				dumpValue := <-c
-				dumpValue += "now used" // go insists that we use values we declare
+			connRetry++
+			log.Println("connection to otgw could not be established. Attempt ", connRetry)
+			if (connSuccess == false) && (connRetry >= 3) {
+				log.Fatal("Aborting program\n") // abort after 3 tries if there has not previously been a connection
+			} else {
+				time.Sleep(time.Second * time.Duration(2^connRetry))
+				continue
 			}
-			c <- msgIn
+		} else {
+			connSuccess = true
+			connRetry = 0 // reset retry counter
+		}
+
+		for {
+			conn.SetReadDeadline(time.Now().Add(time.Second * 10))
+			msgIn, err := bufio.NewReader(conn).ReadString('\n')
+			if err != nil {
+				log.Println("error reading from otgw: ", err)
+				if err == io.EOF { //|| err.Timeout() {
+					log.Println("connection has timed out or was closed by otgw")
+					break
+				}
+			} else {
+				if len(c) == cap(c) {
+					dumpValue = <-c
+					//					dumpValue += "now used" // go insists that we use values we declare
+				}
+				c <- msgIn
+			}
 		}
 	}
 }
