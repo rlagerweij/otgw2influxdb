@@ -37,10 +37,10 @@ var verboseFlagSet = false
 
 func readConfig() {
 	config = make(map[string]string)
-	file, err := os.Open("ot_decoder.cfg")
+	file, err := os.Open("otgw2db.cfg")
 
 	if err != nil {
-		fmt.Println("no config files found. Please rename the supplied ot_decoder.example.cfg file to ot_decoder.cfg and adjust its contents.")
+		fmt.Println("no config files found. Please rename the supplied otgw2db.example.cfg file to otgw2db.cfg and adjust its contents.")
 		log.Fatal(err)
 	}
 
@@ -209,7 +209,7 @@ func influxTest() bool {
 }
 
 func main() {
-	log.Printf("Starting program (version: %s / build time: %s )\n", sha1ver, buildTime)
+	log.Printf("OTGW2DB - starting program (version: %s / build time: %s )\n", sha1ver, buildTime)
 	flag.BoolVar(&verboseFlagSet, "v", false, ": set logging to verbose. Main use is testing, creates very large logs")
 	flag.Parse()
 
@@ -222,7 +222,7 @@ func main() {
 	readConfig()
 
 	if !influxTest() {
-		log.Fatal("Could not connect to influxdb. Please check the settings in ot_decoder.cfg")
+		log.Fatal("Could not connect to influxdb. Please check the settings in otgw2db.cfg")
 	}
 
 	receiveMessages := make(chan string, 10)

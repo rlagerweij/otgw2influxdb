@@ -92,6 +92,7 @@ else # lets start building
   SCRIPT_NAME=`basename "$0"`
   FAILURES=""
   SOURCE_FILE=`echo $@ | sed 's/\.go//'`
+  CONFIG_EXAMPLE="otgw2db.example.cfg"
   CURRENT_DIRECTORY=${PWD##*/}
   OUTPUT=${SOURCE_FILE:-$CURRENT_DIRECTORY} # if no src file given, use current dir name
   NOW=$(date +'%Y-%m-%d_%T')
@@ -108,7 +109,7 @@ else # lets start building
     echo "${CMD}"
     eval $CMD || FAILURES="${FAILURES} ${PLATFORM}"
     zip -m ${BASE_FILENAME} ${BIN_FILENAME}
-    zip ${BASE_FILENAME}.zip ot_decoder.example.cfg
+    zip ${BASE_FILENAME}.zip ${CONFIG_EXAMPLE}
   done
 
   # ARM builds

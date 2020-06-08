@@ -4,4 +4,6 @@ ot_decoder.cfg
 20200507-2252.log
 test_ld_flags.sh
 OTdecoder-*
+otgw2db-*
 *.exe
+otgw2db.cfg
