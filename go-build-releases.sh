@@ -64,8 +64,15 @@ PLATFORMS="$PLATFORMS linux/arm64"
 # PLATFORMS="$PLATFORMS plan9/386" # as of go1.4
 # PLATFORMS="$PLATFORMS solaris/amd64" # as of go1.3
 
-#PLATFORMS_ARM="$PLATFORMS_ARM linux/arm64"
-# freebsd netbsd"
+PLATFORMS_ARM="$PLATFORMS_ARM linux/7"
+#PLATFORMS_ARM="$PLATFORMS_ARM freebsd/7"
+#PLATFORMS_ARM="$PLATFORMS_ARM netbsd/7"
+#PLATFORMS_ARM="$PLATFORMS_ARM linux/6"
+#PLATFORMS_ARM="$PLATFORMS_ARM freebsd/6"
+#PLATFORMS_ARM="$PLATFORMS_ARM netbsd/6"
+#PLATFORMS_ARM="$PLATFORMS_ARM linux/5"
+#PLATFORMS_ARM="$PLATFORMS_ARM freebsd/5"
+#PLATFORMS_ARM="$PLATFORMS_ARM netbsd/5"
 
 
 # ARMBUILDS lists the platforms that are currently supported.  From this list
@@ -118,21 +125,18 @@ else # lets start building
   done
 
   # ARM builds
-#  if [[ $PLATFORMS_ARM == *"linux"* ]]; then 
-#    CMD="GOOS=linux GOARCH=arm64 go build -o ${OUTPUT}-linux-arm64 $@"
-#    echo "${CMD}"
-#    eval $CMD || FAILURES="${FAILURES} ${PLATFORM}"
-#  fi
-#  for GOOS in $PLATFORMS_ARM; do
-#    GOARCH="arm"
-#    # build for each ARM version
-#    for GOARM in 7 6 5; do
-#      BIN_FILENAME="${OUTPUT}-${GOOS}-${GOARCH}${GOARM}"
-#      CMD="GOARM=${GOARM} GOOS=${GOOS} GOARCH=${GOARCH} go build -o ${BIN_FILENAME} $@"
-#      echo "${CMD}"
-#      eval "${CMD}" || FAILURES="${FAILURES} ${GOOS}/${GOARCH}${GOARM}" 
-#    done
-#  done
+  for PLATFORM_ARM in $PLATFORMS_ARM; do
+    GOOS=${PLATFORM_ARM%/*}
+    GOARCH="arm"
+    GOARM=${PLATFORM_ARM#*/}
+    BASE_FILENAME="${OUTPUT}-${GOOS}-${GOARCH}${GOARM}"
+    BIN_FILENAME="${BASE_FILENAME}"
+    CMD="GOOS=${GOOS} GOARCH=${GOARCH} GOARM=${GOARM} go build -ldflags=\"${LD_FLAGS}\" -o ${BIN_FILENAME} $@"
+    echo "${CMD}"
+    eval $CMD || FAILURES="${FAILURES} ${PLATFORM}"
+    zip -m ${BASE_FILENAME} ${BIN_FILENAME}
+    zip ${BASE_FILENAME}.zip ${OTHER_DISTRIBUTION_FILES}
+  done
 
   # eval errors
   if [[ "${FAILURES}" != "" ]]; then
