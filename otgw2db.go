@@ -41,7 +41,7 @@ func readConfig() {
 
 	if err != nil {
 		fmt.Println("no config files found. Please rename the supplied otgw2db.example.cfg file to otgw2db.cfg and adjust its contents.")
-		log.Fatal(err)
+		log.Fatal("OS: ", err)
 	}
 
 	defer file.Close()
@@ -73,7 +73,7 @@ func sendToInfluxBuffer(out chan string) {
 				log.Println("Could not submit data to influxdb. Dropping data points")
 			} else {
 				msgWritten += dbBufferCount
-				logVerbose.Printf("submitted %v points to influxdb. total points written: %v\n", dbBufferCount, msgWritten)
+				logVerbose.Printf("Submitted %v points to influxdb. total points written: %v\n", dbBufferCount, msgWritten)
 			}
 			dbBuffer = ""
 			dbBufferCount = 0
@@ -91,19 +91,19 @@ func sendToInfluxDB(postBody string) error {
 	client := &http.Client{}
 	req, err := http.NewRequest("POST", influxURL, bytes.NewBufferString(postBody))
 	if err != nil {
-		log.Println("creating http request failed: ", err.Error())
+		log.Println("Creating http request failed: ", err.Error())
 	}
 	// log.Println(req)
 	req.Header.Add("Authentication", fmt.Sprintf("Token %s:%s", config["influxUser"], config["influxPass"]))
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Println("http POST to influxdb failed: ", err.Error())
+		log.Println("Http POST to influxdb failed: ", err.Error())
 	}
 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 204 {
-		log.Println("http POST to influxdb returned status:", resp.Status)
+		log.Println("Http POST to influxdb returned status:", resp.Status)
 		err = errors.New("Database does not accept data. Check settings")
 	}
 	return err
@@ -120,7 +120,7 @@ func startRelayListener(c chan net.Conn) {
 	for {
 		conn, err := l.Accept()
 		if err != nil {
-			log.Println("relay client connection error: ", err)
+			log.Println("Relay client connection error: ", err)
 		} else {
 			c <- conn
 		}
@@ -136,7 +136,7 @@ func sendRelayMessages(m chan string, c chan net.Conn) {
 		select {
 		case conn := <-c:
 			{
-				log.Printf("relay client connected from: %s\n", conn.RemoteAddr().String())
+				log.Printf("Relay client connected from: %s\n", conn.RemoteAddr().String())
 				conns.PushBack(conn)
 			}
 		case currentMsg = <-m:
@@ -145,7 +145,7 @@ func sendRelayMessages(m chan string, c chan net.Conn) {
 				conItem.SetWriteDeadline(time.Now().Add(time.Second * 1))
 				_, err := conItem.Write([]byte(currentMsg))
 				if err != nil {
-					log.Println("relay error writing message:", err)
+					log.Println("Relay error writing message:", err)
 					conns.Remove(con)
 				}
 			}
@@ -166,7 +166,7 @@ func readMessagesFromOTGW(c chan string) {
 
 		if err != nil {
 			connRetry++
-			log.Println("connection to otgw could not be established. Attempt ", connRetry)
+			log.Println("Connection to otgw could not be established. Attempt ", connRetry)
 			if (connSuccess == false) && (connRetry >= 3) {
 				log.Fatal("Aborting program\n") // abort after 3 tries if there has not previously been a connection
 			} else {
@@ -183,9 +183,9 @@ func readMessagesFromOTGW(c chan string) {
 			conn.SetReadDeadline(time.Now().Add(time.Second * 10))
 			msgIn, err := bufio.NewReader(conn).ReadString('\n')
 			if err != nil {
-				log.Println("error reading from otgw: ", err)
+				log.Println("Error reading from otgw: ", err)
 				if err == io.EOF { //|| err.Timeout() {
-					log.Println("connection has timed out or was closed by otgw")
+					log.Println("Connection has timed out or was closed by otgw")
 					break
 				}
 			} else {
@@ -203,7 +203,7 @@ func influxTest() bool {
 
 	err := sendToInfluxDB("")
 	if err != nil {
-		log.Println("influxdb test error: ", err)
+		log.Println("Influxdb test error: ", err)
 		return false
 	}
 	return true

@@ -177,7 +177,7 @@ func getMessageType(msg string) uint8 {
 	v, err := hex.DecodeString(msg[1:3])
 	//	fmt.Println("decoding type from ", v[0])
 	if err != nil {
-		logVerbose.Printf("message type hex decoder error: %v\n", err.Error())
+		logVerbose.Printf("Message type hex decoder error: %v\n", err.Error())
 		return cDataInvalid
 	}
 	msgType = uint8((v[0] >> 4) & 7)
@@ -213,7 +213,7 @@ func decodeMessage(v []byte, types []uint8, text []string) []string {
 			offset += 1                                                            // after decoding this type the next decoder should start with an offset of 1
 		case cTypeNone:
 		default:
-			logVerbose.Println("unknown Opentherm type:", valueType)
+			logVerbose.Println("Unknown Opentherm type:", valueType)
 		}
 	}
 	return output
@@ -245,7 +245,7 @@ func decodeValues(v []byte, types []uint8) []string {
 			output = append(output, fmt.Sprintf("%v", v[2]&31)) // bottom 5 bits
 		case cTypeNone:
 		default:
-			logVerbose.Println("unknown opentherm type:", valueType)
+			logVerbose.Println("Unknown opentherm type:", valueType)
 		}
 	}
 	return output
@@ -286,7 +286,7 @@ func decodeReadable(msg string) []string {
 	if isValidMsg(msg) {
 		v, err := hex.DecodeString(msg[1:9]) // leave of the T or B from the front and the \n off the back
 		if err != nil {
-			logVerbose.Printf("hex decoder error: %v\n", err.Error())
+			logVerbose.Printf("Hex decoder error: %v\n", err.Error())
 			return output
 		}
 		msgID := v[1]
