@@ -176,6 +176,7 @@ func readMessagesFromOTGW(c chan string) {
 		} else {
 			connSuccess = true
 			connRetry = 0 // reset retry counter
+			log.Println("Succesfully connected to OTGW at: ", conn.RemoteAddr())
 		}
 
 		for {
