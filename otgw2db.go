@@ -158,24 +158,27 @@ func sendRelayMessages(m chan string, c chan net.Conn) {
 func readMessagesFromOTGW(c chan string) {
 
 	var connSuccess = false // used to indicate whether there has ever been a successful connection
-	var connRetry = 0
+	var connRetryCounter = 0
+	var readErrorCount = 0
 
 	for {
 		d := net.Dialer{Timeout: 2 * time.Second}
 		conn, err := d.Dial("tcp", config["OTGWaddress"])
 
 		if err != nil {
-			connRetry++
-			log.Println("Connection to otgw could not be established. Attempt ", connRetry)
-			if (connSuccess == false) && (connRetry >= 3) {
+			connRetryCounter++
+			log.Println("Connection to otgw could not be established. Attempt ", connRetryCounter)
+			if (connSuccess == false) && (connRetryCounter >= 3) {
 				log.Fatal("Aborting program\n") // abort after 3 tries if there has not previously been a connection
 			} else {
-				time.Sleep(time.Second * time.Duration(2^connRetry))
+				time.Sleep(time.Second * time.Duration(2^connRetryCounter))
 				continue
 			}
 		} else {
 			connSuccess = true
-			connRetry = 0 // reset retry counter
+			// reset counters
+			connRetryCounter = 0
+			readErrorCount = 0
 			log.Println("Succesfully connected to OTGW at: ", conn.RemoteAddr())
 		}
 
@@ -183,12 +186,14 @@ func readMessagesFromOTGW(c chan string) {
 			conn.SetReadDeadline(time.Now().Add(time.Second * 10))
 			msgIn, err := bufio.NewReader(conn).ReadString('\n')
 			if err != nil {
+				readErrorCount++
 				log.Println("Error reading from otgw: ", err)
-				if err == io.EOF { //|| err.Timeout() {
+				if (err == io.EOF) || (readErrorCount > 5) {
 					log.Println("Connection has timed out or was closed by otgw")
 					break
 				}
 			} else {
+				readErrorCount = 0
 				if len(c) == cap(c) {
 					dumpValue = <-c
 					//					dumpValue += "now used" // go insists that we use values we declare
