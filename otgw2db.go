@@ -26,7 +26,6 @@ var config map[string]string
 
 var dbBuffer string
 var dbBufferCount int
-var dumpValue string // used to discard messages when buffers are full
 
 const dbBufferMaxCount = 20 // number of influx points to collect before sending them to the database
 
@@ -195,8 +194,7 @@ func readMessagesFromOTGW(c chan string) {
 			} else {
 				readErrorCount = 0
 				if len(c) == cap(c) {
-					dumpValue = <-c
-					//					dumpValue += "now used" // go insists that we use values we declare
+					_ = <-c //	dump value from channel
 				}
 				c <- msgIn
 			}
@@ -245,8 +243,7 @@ func main() {
 		message := <-receiveMessages
 		logVerbose.Print("Message from OTGW: " + message)
 		if len(relayMessages) == cap(relayMessages) {
-			dumpValue = <-relayMessages
-			//			dumpValue += "now used" // go insists that we use values we declare
+			_ = <-relayMessages // dump value from channel
 		}
 		relayMessages <- message
 
