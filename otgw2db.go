@@ -31,7 +31,7 @@ const dbBufferMaxCount = 20 // number of influx points to collect before sending
 
 var influxWriteURL = "http://%s:%s/api/v2/write?bucket=%s&precision=s"
 
-var logVerbose *log.Logger
+var logVerbose = log.New(os.Stdout, "", log.Ldate|log.Ltime)
 var verboseFlagSet = false
 
 func readConfig() {
@@ -217,10 +217,8 @@ func main() {
 	flag.BoolVar(&verboseFlagSet, "v", false, ": set logging to verbose. Main use is testing, creates very large logs")
 	flag.Parse()
 
-	if verboseFlagSet {
-		logVerbose = log.New(os.Stdout, "", log.Ldate|log.Ltime)
-	} else {
-		logVerbose = log.New(ioutil.Discard, "", log.Ldate|log.Ltime)
+	if !verboseFlagSet {
+		logVerbose.SetOutput(ioutil.Discard)
 	}
 
 	readConfig()
