@@ -5,6 +5,7 @@
 # The changes aer as follows:
 # - Add the check to see if there are uncommited git changes
 # - Add link time variable for the git hash and build time
+# - Rearrange the ARM platforms sections
 # - Some platforms are disabled by commenting them out
 #
 # The link time variables section should be reverted if your program does not use it
@@ -57,26 +58,14 @@ PLATFORMS="$PLATFORMS linux/arm64"
 #PLATFORMS="$PLATFORMS linux/mips64" 
 #PLATFORMS="$PLATFORMS linux/mips64le" # experimental in go1.6
 #PLATFORMS="$PLATFORMS freebsd/amd64"
-# PLATFORMS="$PLATFORMS netbsd/amd64" # amd64 only as of go1.6
-# PLATFORMS="$PLATFORMS openbsd/amd64" # amd64 only as of go1.6
-# PLATFORMS="$PLATFORMS dragonfly/amd64" # amd64 only as of go1.5
-# PLATFORMS="$PLATFORMS plan9/amd64"
-# PLATFORMS="$PLATFORMS plan9/386" # as of go1.4
-# PLATFORMS="$PLATFORMS solaris/amd64" # as of go1.3
+#PLATFORMS="$PLATFORMS netbsd/amd64" # amd64 only as of go1.6
+#PLATFORMS="$PLATFORMS openbsd/amd64" # amd64 only as of go1.6
+#PLATFORMS="$PLATFORMS dragonfly/amd64" # amd64 only as of go1.5
+#PLATFORMS="$PLATFORMS plan9/amd64"
+#PLATFORMS="$PLATFORMS plan9/386" # as of go1.4
+#PLATFORMS="$PLATFORMS solaris/amd64" # as of go1.3
 
-PLATFORMS_ARM="$PLATFORMS_ARM linux/7"
-#PLATFORMS_ARM="$PLATFORMS_ARM freebsd/7"
-#PLATFORMS_ARM="$PLATFORMS_ARM netbsd/7"
-#PLATFORMS_ARM="$PLATFORMS_ARM linux/6"
-#PLATFORMS_ARM="$PLATFORMS_ARM freebsd/6"
-#PLATFORMS_ARM="$PLATFORMS_ARM netbsd/6"
-#PLATFORMS_ARM="$PLATFORMS_ARM linux/5"
-#PLATFORMS_ARM="$PLATFORMS_ARM freebsd/5"
-#PLATFORMS_ARM="$PLATFORMS_ARM netbsd/5"
-
-
-# ARMBUILDS lists the platforms that are currently supported.  From this list
-# we generate the following architectures:
+# ARMBUILDS lists the platforms that are currently supported.  
 #
 #   ARM64 (aka ARMv8) <- only supported on linux and darwin builds (go1.6)
 #   ARMv7
@@ -89,7 +78,17 @@ PLATFORMS_ARM="$PLATFORMS_ARM linux/7"
 #   @dfc: that target expects that you're bulding for a mobile phone
 #   @dfc: iphone 5 and below, ARMv7, iphone 3 and below ARMv6, iphone 5s and above arm64
 # 
-# PLATFORMS_ARM=""#linux freebsd netbsd"
+
+# Format for arm builds: OS/ARM version (e.g. linux/7 is the ARMv7 build for linux)
+PLATFORMS_ARM="$PLATFORMS_ARM linux/7"
+#PLATFORMS_ARM="$PLATFORMS_ARM linux/6"
+#PLATFORMS_ARM="$PLATFORMS_ARM linux/5"
+#PLATFORMS_ARM="$PLATFORMS_ARM freebsd/7"
+#PLATFORMS_ARM="$PLATFORMS_ARM freebsd/6"
+#PLATFORMS_ARM="$PLATFORMS_ARM freebsd/5"
+#PLATFORMS_ARM="$PLATFORMS_ARM netbsd/7"
+#PLATFORMS_ARM="$PLATFORMS_ARM netbsd/6"
+#PLATFORMS_ARM="$PLATFORMS_ARM netbsd/5"
 
 ##############################################################
 # Shouldn't really need to modify anything below this line.  #
