@@ -53,29 +53,11 @@ const (
 	cFieldMaskAllBits  = cFieldMaskHighByte + cFieldMaskLowByte
 )
 
-type openthermMessage struct {
-	message []byte
-}
-
 type oTValue struct {
 	fields       []string
 	highByteType uint8
 	lowByteType  uint8
 	descriptions []string
-}
-
-type oTInfluxField struct {
-	fieldName string
-	fieldMask uint16
-	fieldType uint8
-}
-
-type oTValueInflux struct {
-	fields []oTInfluxField
-}
-
-var decoderMapInflux = map[uint8]oTValueInflux{
-	0: oTValueInflux{[]oTInfluxField{{"CH_status", cFieldMaskBit2, cTypeF8_8}, {"DHW_status", cFieldMaskBit3, cTypeF8_8}, {"Flame_status", cFieldMaskBit4, cTypeF8_8}, {"Cooling_status", cFieldMaskBit5, cTypeF8_8}, {"CH2_status", cFieldMaskBit6, cTypeF8_8}, {"Diagnostic_Event", cFieldMaskBit7, cTypeF8_8}}},
 }
 
 var decoderMapReadable = map[uint8]oTValue{
@@ -165,6 +147,7 @@ func byteToBool(in byte, bitPosition byte) bool {
 }
 
 func decodeFlag8(in byte, bitPosition byte) string {
+	//TODO: operate on 16 bits at once?
 	var result = "0"
 	if byteToBool(in, bitPosition) {
 		result = "1"
