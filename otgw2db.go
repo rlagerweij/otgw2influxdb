@@ -34,9 +34,9 @@ var influxWriteURL = "http://%s:%s/api/v2/write?bucket=%s&precision=s"
 var logVerbose = log.New(ioutil.Discard, "", log.Ldate|log.Ltime)
 var verboseFlagSet = false
 
-func readConfig() {
+func readConfig(fn string) {
 	config = make(map[string]string)
-	file, err := os.Open("otgw2db.cfg")
+	file, err := os.Open(fn)
 
 	if err != nil {
 		fmt.Println("no config files found. Please rename the supplied otgw2db.example.cfg file to otgw2db.cfg and adjust its contents.")
@@ -221,7 +221,7 @@ func main() {
 		logVerbose.SetOutput(os.Stdout)
 	}
 
-	readConfig()
+	readConfig("otgw2db.cfg")
 
 	if !influxTest() {
 		log.Fatal("Could not connect to influxdb. Please check the settings in otgw2db.cfg")
