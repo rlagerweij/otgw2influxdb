@@ -76,7 +76,7 @@ echo $! > otgw2db_pid.txt
 
 ### Windows
 
-Windows Powershell supports running programs in the background through the [Start-Process](https://docs.microsoft.com/en-us/powershell/scripting/developer/cmdlet/cmdlet-overview?view=powershell-7) cmdlet. 
+Windows Powershell supports running programs in the background through the [Start-Process](https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.management/start-process?view=powershell-7) cmdlet. 
 
 Something like the command below should work but is not tested at this time. 
 
