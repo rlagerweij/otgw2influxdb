@@ -168,7 +168,7 @@ func readMessagesFromOTGW(c chan string) {
 			connRetryCounter++
 			log.Println("Connection to otgw could not be established. Attempt ", connRetryCounter)
 			if (connSuccess == false) && (connRetryCounter >= 3) {
-				log.Fatal("Aborting program\n") // abort after 3 tries if there has not previously been a connection
+				log.Fatal("Aborting program. Check your settings in otgw2db.cfg\n") // abort after 3 tries if there has not previously been a connection
 			} else {
 				time.Sleep(time.Second * time.Duration(2^connRetryCounter))
 				continue
@@ -186,7 +186,7 @@ func readMessagesFromOTGW(c chan string) {
 			msgIn, err := bufio.NewReader(conn).ReadString('\n')
 			if err != nil {
 				readErrorCount++
-				log.Println("Error reading from otgw: ", err)
+				log.Println("Error reading from otgw (count ", readErrorCount, "): ", err)
 				if (err == io.EOF) || (readErrorCount > 5) {
 					log.Println("Connection has timed out or was closed by otgw")
 					break
