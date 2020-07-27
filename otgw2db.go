@@ -34,6 +34,8 @@ var influxWriteURL = "http://%s:%s/api/v2/write?bucket=%s&precision=s"
 var logVerbose = log.New(ioutil.Discard, "", log.Ldate|log.Ltime)
 var verboseFlagSet = false
 
+var maxOtgwReconnectDelay = 600 // max delay in seconds for exponential back-off
+
 func readConfig(fn string) {
 	config = make(map[string]string)
 	file, err := os.Open(fn)
@@ -158,6 +160,7 @@ func readMessagesFromOTGW(c chan string) {
 
 	var connSuccess = false // used to indicate whether there has ever been a successful connection
 	var connRetryCounter = 0
+	var otgwReconnectDelay = 0
 	var readErrorCount = 0
 
 	for {
@@ -170,14 +173,25 @@ func readMessagesFromOTGW(c chan string) {
 			if (connSuccess == false) && (connRetryCounter >= 3) {
 				log.Fatal("Aborting program. Check your settings in otgw2db.cfg\n") // abort after 3 tries if there has not previously been a connection
 			} else {
-				time.Sleep(time.Second * time.Duration(2^connRetryCounter))
+				time.Sleep(time.Second * time.Duration(otgwReconnectDelay))
+
+				// exponential back-off on reconnecting to the OTGW
+				if otgwReconnectDelay < maxOtgwReconnectDelay {
+					otgwReconnectDelay = (1 << connRetryCounter)
+				} else {
+					otgwReconnectDelay = maxOtgwReconnectDelay
+				}
+
 				continue
 			}
 		} else {
 			connSuccess = true
+
 			// reset counters
 			connRetryCounter = 0
+			otgwReconnectDelay = 0
 			readErrorCount = 0
+
 			log.Println("Succesfully connected to OTGW at: ", conn.RemoteAddr())
 		}
 
