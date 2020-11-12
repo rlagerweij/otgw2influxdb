@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-const cOTGWmsgLength = 11
+const cOTGWmsgLength = 9
 
 const (
 	cTypeNone  = 0
@@ -284,7 +284,7 @@ func decodeReadable(msg string) []string {
 func isValidMsg(msg string) bool {
 	var valid = true
 
-	valid = valid && (len(msg) == cOTGWmsgLength)
+	valid = valid && (len(strings.TrimSpace(msg)) == cOTGWmsgLength)
 	valid = valid && (msg[0:1] == "T" || msg[0:1] == "B")
 
 	if !valid {
