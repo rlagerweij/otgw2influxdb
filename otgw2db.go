@@ -152,6 +152,7 @@ func sendRelayMessages(m chan string, c chan net.Conn) {
 			}
 		default:
 			// include default to make the above non-blocking
+			time.Sleep(time.Millisecond * 10) // add small delay to reduce cpu usage
 		}
 	}
 }
@@ -273,5 +274,6 @@ func main() {
 				}
 			}
 		}
+		time.Sleep(time.Millisecond * 10) // add small delay to the main loop to reduce cpu usage
 	}
 }
