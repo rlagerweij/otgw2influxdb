@@ -229,9 +229,9 @@ func influxTest() bool {
 
 func main() {
 	log.Printf("OTGW2DB - starting program (version: %s / build time: %s )\n", sha1ver, buildTime)
+
 	flag.BoolVar(&verboseFlagSet, "v", false, ": set logging to verbose. Main use is testing, creates very large logs")
 	flag.Parse()
-
 	if verboseFlagSet {
 		logVerbose.SetOutput(os.Stdout)
 	}
