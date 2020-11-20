@@ -242,6 +242,8 @@ func main() {
 		log.Fatal("Could not connect to influxdb. Please check the settings in otgw2db.cfg")
 	}
 
+	OT := openthermMessage{}
+
 	receiveMessages := make(chan string, 10)
 	sendMessages := make(chan string, 10)
 	relayMessages := make(chan string, 10)
@@ -260,15 +262,17 @@ func main() {
 		}
 		relayMessages <- message
 
-		if isValidMsg(message) && isDecodableMsgType(message) {
+		if OT.ParseMessage(message) {
+
 			if strings.Contains(config["decode_readable"], "YES") {
-				readable := decodeReadable(message)
-				for _, line := range readable {
-					fmt.Println(line)
+				readable := OT.DecodeToReadable()
+				if len(readable) > 0 {
+					fmt.Println(readable)
 				}
 			}
+
 			if strings.Contains(config["decode_line_protocol"], "YES") {
-				lp := decodeLineProtocol(message)
+				lp := OT.DecodeToLineProtocol()
 				if len(lp) > 0 {
 					sendMessages <- lp
 				}
