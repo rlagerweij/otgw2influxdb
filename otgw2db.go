@@ -99,6 +99,7 @@ func sendToInfluxDB(postBody string) error {
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Println("Http POST to influxdb failed: ", err.Error())
+		return err
 	}
 
 	defer resp.Body.Close()
