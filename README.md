@@ -2,6 +2,8 @@
 
 OTGW2DB is a standalone program which can receive the output from the opentherm gateway ("OTGW") and pass it to InfluxDB for storage, analysis and graphing. It can also decode the message flow to human readable text for diagnostic purposes. OTGW2DB also contains a relay component which passes on the unmodified messages received to any connected client. 
 
+![Screenshot](./doc/Screenshot.png)
+
 The application is build in the Go programming language and can therefore be used on a great number of diffferent platforms including windows, macOs, linux, freebsd etc.
 
 ## Getting Started
