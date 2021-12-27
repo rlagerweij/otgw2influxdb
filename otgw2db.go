@@ -68,6 +68,7 @@ func sendToInfluxBuffer(out chan string) {
 		dbBuffer += lp
 		dbBufferCount++
 		logVerbose.Print("Added message ", dbBufferCount, " to the buffer:", lp)
+
 		if dbBufferCount >= dbBufferMaxCount {
 			err := sendToInfluxDB(dbBuffer)
 			if err != nil {
@@ -210,7 +211,7 @@ func readMessagesFromOTGW(c chan string) {
 			} else {
 				readErrorCount = 0
 				if len(c) == cap(c) {
-					_ = <-c //	dump value from channel
+					_ = <-c //	dump a value from the channel
 				}
 				c <- msgIn
 			}
